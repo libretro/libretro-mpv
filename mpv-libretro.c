@@ -47,9 +47,15 @@ void retro_init(void)
     // returns NULL if no OpenGL support is compiled.
     mpv_opengl_cb_context *mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
     if(!mpv_gl)
-	{
-        log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle");
-	}
+		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle");
+
+	// Actually using the opengl_cb state has to be explicitly requested.
+	// Otherwise, mpv will create a separate platform window.
+	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
+		log_cb(RETRO_LOG_ERROR, "failed to set VO");
+
+	if(mpv_set_option_string(mpv, "ao", "null") < 0)
+		log_cb(RETRO_LOG_ERROR, "failed to set AO");
 
 	return;
 }
@@ -197,7 +203,7 @@ bool retro_unserialize(const void *data_, size_t size)
 bool retro_load_game(const struct retro_game_info *info)
 {
     const char *cmd[] = {"loadfile", info->path, NULL};
-    //mpv_command(mpv, cmd);
+    mpv_command(mpv, cmd);
 
 	return true;
 }
