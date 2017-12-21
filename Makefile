@@ -1,5 +1,6 @@
 STATIC_LINKING := 0
 AR             := ar
+DEBUG			:= 1
 
 ifeq ($(platform),)
 platform = unix
@@ -111,8 +112,22 @@ else
    CFLAGS += -O3
 endif
 
-OBJECTS := mpv-libretro.o
+OBJECTS := mpv-libretro.o glsym/rglgen.o
 CFLAGS += -Wall -pedantic $(fpic)
+
+ifeq ($(GLES), 1)
+   CFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES2
+   ifeq ($(GLES31), 1)
+      CFLAGS += -DHAVE_OPENGLES3 -DHAVE_OPENGLES_3_1
+   else ifeq ($(GLES3), 1)
+      CFLAGS += -DHAVE_OPENGLES3
+   endif
+   LIBS += -lGLESv2 # Still link against GLESv2 when using GLES3 API, at least on desktop Linux.
+   OBJECTS += glsym/glsym_es2.o
+else
+   OBJECTS += glsym/glsym_gl.o
+   LIBS += $(GL_LIB)
+endif
 
 ifneq (,$(findstring qnx,$(platform)))
 CFLAGS += -Wc,-std=c99
