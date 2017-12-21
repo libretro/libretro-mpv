@@ -19,6 +19,9 @@ static struct retro_hw_render_callback hw_render;
 static struct retro_log_callback logging;
 static retro_log_printf_t log_cb;
 
+static struct retro_get_proc_address_interface procaddr;
+static retro_get_proc_address_t proc_cb;
+
 static retro_video_refresh_t video_cb;
 static retro_audio_sample_t audio_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
@@ -40,31 +43,6 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 
 void retro_init(void)
 {
-	mpv = mpv_create();
-
-	log_cb(RETRO_LOG_DEBUG, "Test\n");
-
-	if(!mpv)
-		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
-
-	if(mpv_initialize(mpv) < 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
-		return;
-	}
-
-	// The OpenGL API is somewhat separate from the normal mpv API. This only
-	// returns NULL if no OpenGL support is compiled.
-	mpv_opengl_cb_context *mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
-
-	if(!mpv_gl)
-		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle");
-
-	// Actually using the opengl_cb state has to be explicitly requested.
-	// Otherwise, mpv will create a separate platform window.
-	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
-		log_cb(RETRO_LOG_ERROR, "failed to set VO");
-
 	return;
 }
 
@@ -133,6 +111,10 @@ void retro_set_environment(retro_environment_t cb)
 	};
 
 	cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
+	if(!cb(RETRO_ENVIRONMENT_SET_PROC_ADDRESS_CALLBACK, &procaddr))
+		puts("proc_address callback failure");
+
+	proc_cb = procaddr.get_proc_address;
 
 	if (cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging))
 		log_cb = logging.log;
@@ -236,6 +218,7 @@ void retro_run(void)
 {
 	audio_callback();
 
+	mpv_opengl_cb_draw(mpv_gl, 0, 100, 100);
 	return;
 }
 
@@ -255,9 +238,54 @@ bool retro_unserialize(const void *data_, size_t size)
 	return true;
 }
 
+static void *get_proc_address_mpv(void *fn_ctx, const char *name)
+{
+	printf("name: %s\n", name);
+	return proc_cb(name);
+}
+
 bool retro_load_game(const struct retro_game_info *info)
 {
 	const char *cmd[] = {"loadfile", info->path, NULL};
+
+	mpv = mpv_create();
+
+	if(!mpv)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
+		return false;
+	}
+
+	if(mpv_initialize(mpv) < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
+		return false;
+	}
+
+	// The OpenGL API is somewhat separate from the normal mpv API. This only
+	// returns NULL if no OpenGL support is compiled.
+	mpv_opengl_cb_context *mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
+
+	if(!mpv_gl)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle\n");
+		return false;
+	}
+
+	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
+		return false;
+	}
+
+	// Actually using the opengl_cb state has to be explicitly requested.
+	// Otherwise, mpv will create a separate platform window.
+	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed to set VO");
+		return false;
+	}
+
 
 	if (!retro_init_hw_context())
 	{
