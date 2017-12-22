@@ -19,9 +19,6 @@ static struct retro_hw_render_callback hw_render;
 static struct retro_log_callback logging;
 static retro_log_printf_t log_cb;
 
-static struct retro_get_proc_address_interface procaddr;
-static retro_get_proc_address_t proc_cb;
-
 static retro_video_refresh_t video_cb;
 static retro_audio_sample_t audio_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
@@ -111,10 +108,6 @@ void retro_set_environment(retro_environment_t cb)
 	};
 
 	cb(RETRO_ENVIRONMENT_SET_VARIABLES, (void*)vars);
-	if(!cb(RETRO_ENVIRONMENT_SET_PROC_ADDRESS_CALLBACK, &procaddr))
-		puts("proc_address callback failure");
-
-	proc_cb = procaddr.get_proc_address;
 
 	if (cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging))
 		log_cb = logging.log;
@@ -241,7 +234,8 @@ bool retro_unserialize(const void *data_, size_t size)
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 {
 	printf("name: %s\n", name);
-	return proc_cb(name);
+	return hw_render.get_proc_address(name);
+	// return proc_cb(name);
 }
 
 bool retro_load_game(const struct retro_game_info *info)
@@ -286,8 +280,7 @@ bool retro_load_game(const struct retro_game_info *info)
 		return false;
 	}
 
-
-	if (!retro_init_hw_context())
+	if(!retro_init_hw_context())
 	{
 		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
 		return false;
