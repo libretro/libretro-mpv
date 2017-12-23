@@ -7,8 +7,8 @@
 #include <mpv/client.h>
 #include <mpv/opengl_cb.h>
 
-#include "glsym/glsym.h"
-#include "libretro.h"
+#include <glsm/glsmsym.h>
+#include <libretro.h>
 
 static struct retro_hw_render_callback hw_render;
 
@@ -36,6 +36,16 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 	va_start(va, fmt);
 	vfprintf(stderr, fmt, va);
 	va_end(va);
+}
+
+void *VidExt_GL_GetProcAddress(const char* Proc)
+{
+	glsm_ctx_proc_address_t proc_info;
+	proc_info.addr = NULL;
+	if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
+		return NULL;
+
+	return proc_info.addr(Proc);
 }
 
 void retro_init(void)

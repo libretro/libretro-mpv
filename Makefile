@@ -105,6 +105,7 @@ else
 endif
 
 LDFLAGS += $(LIBM) -lmpv
+LIBRETRO-COM	= -Ilibretro-common/include
 
 ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g
@@ -112,8 +113,8 @@ else
    CFLAGS += -O3
 endif
 
-OBJECTS := mpv-libretro.o glsym/rglgen.o
-CFLAGS += -Wall -pedantic $(fpic)
+OBJECTS := mpv-libretro.o libretro-common/glsm/glsm.o libretro-common/gfx/gl_capabilities.o
+CFLAGS += -Wall -pedantic $(LIBRETRO-COM) $(fpic)
 
 ifeq ($(GLES), 1)
    CFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES2
