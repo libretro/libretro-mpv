@@ -234,6 +234,8 @@ bool retro_unserialize(const void *data_, size_t size)
 
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 {
+#if 0
+	/* This doesn't work */
 	glsm_ctx_proc_address_t proc_info;
 
 	proc_info.addr = NULL;
@@ -244,11 +246,23 @@ static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 	}
 
 	return proc_info.addr(name);
+#endif
+	/* This doesn't work either */
+	rglgen_resolve_symbols(hw_render.get_proc_address);
+	log_cb(RETRO_LOG_INFO, "attempting to obtain %s proc using %p at %p\n", name,
+			hw_render.get_proc_address, hw_render.get_proc_address(name));
+	return hw_render.get_proc_address(name);
 }
 
 bool retro_load_game(const struct retro_game_info *info)
 {
 	const char *cmd[] = {"loadfile", info->path, NULL};
+
+	if(!retro_init_hw_context())
+	{
+		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
+		return false;
+	}
 
 	mpv = mpv_create();
 
@@ -285,12 +299,6 @@ bool retro_load_game(const struct retro_game_info *info)
 	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to set VO");
-		return false;
-	}
-
-	if(!retro_init_hw_context())
-	{
-		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
 		return false;
 	}
 
