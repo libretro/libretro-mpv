@@ -8,6 +8,7 @@
 #include <mpv/opengl_cb.h>
 
 #include <glsm/glsmsym.h>
+#include <glsm/glsm.h>
 #include <libretro.h>
 
 static struct retro_hw_render_callback hw_render;
@@ -233,13 +234,16 @@ bool retro_unserialize(const void *data_, size_t size)
 
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 {
-	printf("name: %s\n", name);
-   glsm_ctx_proc_address_t proc_info;
-   proc_info.addr = NULL;
-   if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
-      return NULL;
+	glsm_ctx_proc_address_t proc_info;
 
-   return proc_info.addr(name);
+	proc_info.addr = NULL;
+	if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
+	{
+		log_cb(RETRO_LOG_ERROR, "unable to get proc: %s\n", name);
+		return NULL;
+	}
+
+	return proc_info.addr(name);
 }
 
 bool retro_load_game(const struct retro_game_info *info)

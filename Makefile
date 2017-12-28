@@ -124,9 +124,9 @@ ifeq ($(GLES), 1)
       CFLAGS += -DHAVE_OPENGLES3
    endif
    LIBS += -lGLESv2 # Still link against GLESv2 when using GLES3 API, at least on desktop Linux.
-   OBJECTS += glsym/glsym_es2.o
+   OBJECTS += libretro-common/glsym/glsym_es2.o
 else
-   OBJECTS += glsym/glsym_gl.o
+   OBJECTS += libretro-common/glsym/glsym_gl.o
    LIBS += $(GL_LIB)
 endif
 
