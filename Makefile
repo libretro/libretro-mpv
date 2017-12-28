@@ -104,7 +104,7 @@ else
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
 endif
 
-LDFLAGS += $(LIBM) -lmpv
+LDFLAGS += $(LIBM) -lmpv -lGL
 LIBRETRO-COM	= -Ilibretro-common/include
 
 ifeq ($(DEBUG), 1)
@@ -113,7 +113,7 @@ else
    CFLAGS += -O3
 endif
 
-OBJECTS := mpv-libretro.o libretro-common/glsm/glsm.o libretro-common/gfx/gl_capabilities.o
+OBJECTS := mpv-libretro.o libretro-common/glsym/rglgen.o libretro-common/glsm/glsm.o
 CFLAGS += -Wall -pedantic $(LIBRETRO-COM) $(fpic)
 
 ifeq ($(GLES), 1)

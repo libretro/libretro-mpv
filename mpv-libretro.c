@@ -38,16 +38,6 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 	va_end(va);
 }
 
-void *VidExt_GL_GetProcAddress(const char* Proc)
-{
-	glsm_ctx_proc_address_t proc_info;
-	proc_info.addr = NULL;
-	if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
-		return NULL;
-
-	return proc_info.addr(Proc);
-}
-
 void retro_init(void)
 {
 	return;
@@ -244,8 +234,12 @@ bool retro_unserialize(const void *data_, size_t size)
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 {
 	printf("name: %s\n", name);
-	return hw_render.get_proc_address(name);
-	// return proc_cb(name);
+   glsm_ctx_proc_address_t proc_info;
+   proc_info.addr = NULL;
+   if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
+      return NULL;
+
+   return proc_info.addr(name);
 }
 
 bool retro_load_game(const struct retro_game_info *info)
