@@ -7,8 +7,6 @@
 #include <mpv/client.h>
 #include <mpv/opengl_cb.h>
 
-#include <glsm/glsmsym.h>
-#include <glsm/glsm.h>
 #include <libretro.h>
 
 static struct retro_hw_render_callback hw_render;
@@ -119,7 +117,6 @@ void retro_set_environment(retro_environment_t cb)
 static void context_reset(void)
 {
 	log_cb(RETRO_LOG_DEBUG, "Context reset.\n");
-	rglgen_resolve_symbols(hw_render.get_proc_address);
 }
 
 static void context_destroy(void)
@@ -212,7 +209,8 @@ void retro_run(void)
 {
 	audio_callback();
 
-	mpv_opengl_cb_draw(mpv_gl, 0, 100, 100);
+	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), 100, 100);
+   video_cb(RETRO_HW_FRAME_BUFFER_VALID, 100, 100, 0);
 	return;
 }
 
@@ -248,10 +246,9 @@ static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 	return proc_info.addr(name);
 #endif
 	/* This doesn't work either */
-	rglgen_resolve_symbols(hw_render.get_proc_address);
 	log_cb(RETRO_LOG_INFO, "attempting to obtain %s proc using %p at %p\n", name,
 			hw_render.get_proc_address, hw_render.get_proc_address(name));
-	return hw_render.get_proc_address(name);
+	return (void *) hw_render.get_proc_address(name);
 }
 
 bool retro_load_game(const struct retro_game_info *info)

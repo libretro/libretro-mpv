@@ -113,7 +113,7 @@ else
    CFLAGS += -O3
 endif
 
-OBJECTS := mpv-libretro.o libretro-common/glsym/rglgen.o libretro-common/glsm/glsm.o
+OBJECTS := mpv-libretro.o
 CFLAGS += -Wall -pedantic $(LIBRETRO-COM) $(fpic)
 
 ifeq ($(GLES), 1)
