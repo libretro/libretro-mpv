@@ -104,7 +104,7 @@ else
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
 endif
 
-LDFLAGS += $(LIBM) -lmpv -lGL
+LDFLAGS += $(LIBM) -lmpv
 LIBRETRO-COM	= -Ilibretro-common/include
 
 ifeq ($(DEBUG), 1)
@@ -115,20 +115,6 @@ endif
 
 OBJECTS := mpv-libretro.o
 CFLAGS += -Wall -pedantic $(LIBRETRO-COM) $(fpic)
-
-ifeq ($(GLES), 1)
-   CFLAGS += -DHAVE_OPENGLES -DHAVE_OPENGLES2
-   ifeq ($(GLES31), 1)
-      CFLAGS += -DHAVE_OPENGLES3 -DHAVE_OPENGLES_3_1
-   else ifeq ($(GLES3), 1)
-      CFLAGS += -DHAVE_OPENGLES3
-   endif
-   LIBS += -lGLESv2 # Still link against GLESv2 when using GLES3 API, at least on desktop Linux.
-   OBJECTS += libretro-common/glsym/glsym_es2.o
-else
-   OBJECTS += libretro-common/glsym/glsym_gl.o
-   LIBS += $(GL_LIB)
-endif
 
 ifneq (,$(findstring qnx,$(platform)))
 CFLAGS += -Wc,-std=c99

@@ -11,10 +11,6 @@
 
 static struct retro_hw_render_callback hw_render;
 
-#define RARCH_GL_FRAMEBUFFER GL_FRAMEBUFFER
-#define RARCH_GL_FRAMEBUFFER_COMPLETE GL_FRAMEBUFFER_COMPLETE
-#define RARCH_GL_COLOR_ATTACHMENT0 GL_COLOR_ATTACHMENT0
-
 static struct retro_log_callback logging;
 static retro_log_printf_t log_cb;
 
@@ -89,8 +85,9 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	info->geometry = (struct retro_game_geometry) {
 		.base_width   = 320,
 		.base_height  = 240,
-		.max_width    = 320,
-		.max_height   = 240,
+		.max_width    = 1920,
+		.max_height   = 1080,
+		.aspect_ratio = -1,
 	};
 }
 
@@ -152,8 +149,6 @@ static bool retro_init_hw_context(void)
 	hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
 	hw_render.context_reset = context_reset;
 	hw_render.context_destroy = context_destroy;
-	hw_render.depth = true;
-	hw_render.bottom_left_origin = true;
 
 	if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
 		return false;
@@ -209,8 +204,8 @@ void retro_run(void)
 {
 	audio_callback();
 
-	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), 100, 100);
-   video_cb(RETRO_HW_FRAME_BUFFER_VALID, 100, 100, 0);
+	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), 320, 240);
+	video_cb(RETRO_HW_FRAME_BUFFER_VALID, 320, 240, 0);
 	return;
 }
 
@@ -255,6 +250,12 @@ bool retro_load_game(const struct retro_game_info *info)
 {
 	const char *cmd[] = {"loadfile", info->path, NULL};
 
+   enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
+   if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+   {
+      fprintf(stderr, "XRGB8888 is not supported.\n");
+      return false;
+   }
 	if(!retro_init_hw_context())
 	{
 		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
