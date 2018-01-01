@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <mpv/client.h>
 #include <mpv/opengl_cb.h>
@@ -23,6 +24,7 @@ static retro_input_state_t input_state_cb;
 
 static mpv_handle *mpv;
 static mpv_opengl_cb_context *mpv_gl;
+static char *filepath = NULL;
 
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 {
@@ -40,8 +42,6 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
-	mpv_opengl_cb_uninit_gl(mpv_gl);
-	mpv_terminate_destroy(mpv);
 	return;
 }
 
@@ -111,14 +111,83 @@ void retro_set_environment(retro_environment_t cb)
 		log_cb = fallback_log;
 }
 
+static void *get_proc_address_mpv(void *fn_ctx, const char *name)
+{
+#if 0
+	/* This doesn't work */
+	glsm_ctx_proc_address_t proc_info;
+
+	proc_info.addr = NULL;
+	if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
+	{
+		log_cb(RETRO_LOG_ERROR, "unable to get proc: %s\n", name);
+		return NULL;
+	}
+
+	return proc_info.addr(name);
+#endif
+	/* This doesn't work either */
+	log_cb(RETRO_LOG_INFO, "attempting to obtain %s proc using %p at %p\n", name,
+			hw_render.get_proc_address, hw_render.get_proc_address(name));
+	return (void *) hw_render.get_proc_address(name);
+}
+
 static void context_reset(void)
 {
-	log_cb(RETRO_LOG_DEBUG, "Context reset.\n");
+	const char *cmd[] = {"loadfile", filepath, NULL};
+
+	mpv = mpv_create();
+
+	if(!mpv)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
+		return;
+	}
+
+	if(mpv_initialize(mpv) < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
+		return;
+	}
+
+	// The OpenGL API is somewhat separate from the normal mpv API. This only
+	// returns NULL if no OpenGL support is compiled.
+	mpv_opengl_cb_context *mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
+
+	if(!mpv_gl)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle\n");
+		return;
+	}
+
+	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
+		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
+
+	// Actually using the opengl_cb state has to be explicitly requested.
+	// Otherwise, mpv will create a separate platform window.
+	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed to set VO");
+		return;
+	}
+
+	if(mpv_command(mpv, cmd) != 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed issue mpv_command\n");
+		return;
+	}
+
+	log_cb(RETRO_LOG_INFO, "Context reset.\n");
 }
 
 static void context_destroy(void)
 {
-	log_cb(RETRO_LOG_DEBUG, "Context destroyed.\n");
+	free(filepath);
+	filepath = NULL;
+
+	mpv_opengl_cb_uninit_gl(mpv_gl);
+	mpv_terminate_destroy(mpv);
+	log_cb(RETRO_LOG_INFO, "Context destroyed.\n");
 }
 
 #ifdef HAVE_OPENGLES
@@ -225,30 +294,9 @@ bool retro_unserialize(const void *data_, size_t size)
 	return true;
 }
 
-static void *get_proc_address_mpv(void *fn_ctx, const char *name)
-{
-#if 0
-	/* This doesn't work */
-	glsm_ctx_proc_address_t proc_info;
-
-	proc_info.addr = NULL;
-	if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
-	{
-		log_cb(RETRO_LOG_ERROR, "unable to get proc: %s\n", name);
-		return NULL;
-	}
-
-	return proc_info.addr(name);
-#endif
-	/* This doesn't work either */
-	log_cb(RETRO_LOG_INFO, "attempting to obtain %s proc using %p at %p\n", name,
-			hw_render.get_proc_address, hw_render.get_proc_address(name));
-	return (void *) hw_render.get_proc_address(name);
-}
-
 bool retro_load_game(const struct retro_game_info *info)
 {
-	const char *cmd[] = {"loadfile", info->path, NULL};
+	filepath = strdup(info->path);
 
    enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
    if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
@@ -261,51 +309,6 @@ bool retro_load_game(const struct retro_game_info *info)
 		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
 		return false;
 	}
-
-	mpv = mpv_create();
-
-	if(!mpv)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
-		return false;
-	}
-
-	if(mpv_initialize(mpv) < 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
-		return false;
-	}
-
-	// The OpenGL API is somewhat separate from the normal mpv API. This only
-	// returns NULL if no OpenGL support is compiled.
-	mpv_opengl_cb_context *mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
-
-	if(!mpv_gl)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle\n");
-		return false;
-	}
-
-	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
-		return false;
-	}
-
-	// Actually using the opengl_cb state has to be explicitly requested.
-	// Otherwise, mpv will create a separate platform window.
-	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed to set VO");
-		return false;
-	}
-
-	if(mpv_command(mpv, cmd) != 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed issue mpv_command\n");
-		return false;
-	}
-
 	return true;
 }
 
