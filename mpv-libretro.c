@@ -152,7 +152,7 @@ static void context_reset(void)
 
 	// The OpenGL API is somewhat separate from the normal mpv API. This only
 	// returns NULL if no OpenGL support is compiled.
-	mpv_opengl_cb_context *mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
+	mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
 
 	if(!mpv_gl)
 	{
@@ -271,7 +271,8 @@ static void audio_callback(void)
 
 void retro_run(void)
 {
-	audio_callback();
+	/* TODO: Implement an audio callback feature in to libmpv */
+	//audio_callback();
 
 	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), 320, 240);
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, 320, 240, 0);
