@@ -156,6 +156,12 @@ static void context_reset(void)
 		return;
 	}
 
+	if(mpv_set_option_string(mpv, "hwdec", "auto") < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed to enable hwdec");
+		return;
+	}
+
 	if(mpv_command(mpv, cmd) != 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed issue mpv_command\n");
