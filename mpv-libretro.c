@@ -42,6 +42,7 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
+	mpv_terminate_destroy(mpv);
 	return;
 }
 
@@ -170,7 +171,6 @@ static void context_destroy(void)
 	filepath = NULL;
 
 	mpv_opengl_cb_uninit_gl(mpv_gl);
-	mpv_terminate_destroy(mpv);
 	log_cb(RETRO_LOG_INFO, "Context destroyed.\n");
 }
 
