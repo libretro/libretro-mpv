@@ -113,22 +113,6 @@ void retro_set_environment(retro_environment_t cb)
 
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 {
-#if 0
-	/* This doesn't work */
-	glsm_ctx_proc_address_t proc_info;
-
-	proc_info.addr = NULL;
-	if (!glsm_ctl(GLSM_CTL_PROC_ADDRESS_GET, NULL))
-	{
-		log_cb(RETRO_LOG_ERROR, "unable to get proc: %s\n", name);
-		return NULL;
-	}
-
-	return proc_info.addr(name);
-#endif
-	/* This doesn't work either */
-	log_cb(RETRO_LOG_INFO, "attempting to obtain %s proc using %p at %p\n", name,
-			hw_render.get_proc_address, hw_render.get_proc_address(name));
 	return (void *) hw_render.get_proc_address(name);
 }
 
@@ -297,14 +281,20 @@ bool retro_unserialize(const void *data_, size_t size)
 
 bool retro_load_game(const struct retro_game_info *info)
 {
+	/* Supported on most systems. */
+	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
+
+	/* Copy the file path to a global variable as we need it in context_reset()
+	 * where mpv is initialised.
+	 */
 	filepath = strdup(info->path);
 
-   enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
-   if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
-   {
-      fprintf(stderr, "XRGB8888 is not supported.\n");
-      return false;
-   }
+	if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+	{
+		fprintf(stderr, "RGB565 is not supported.\n");
+		return false;
+	}
+
 	if(!retro_init_hw_context())
 	{
 		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
