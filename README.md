@@ -1,6 +1,6 @@
 # mpv-libretro
 
-mpv media player as a libretro core. **Currently not for use.**
+mpv media player as a libretro core. A proof of concept release is now available.
 
 Aims to use features already established in mpv that are not currently available in Retroarch movieplayer.
 
