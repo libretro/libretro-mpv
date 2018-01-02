@@ -240,6 +240,7 @@ void retro_reset(void)
 	return;
 }
 
+#if 0
 static void audio_callback(void)
 {
 	static unsigned phase;
@@ -252,9 +253,48 @@ static void audio_callback(void)
 
 	phase %= 100;
 }
+#endif
+
+static void retropad_update_input(void)
+{
+	input_poll_cb();
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_LEFT))
+		mpv_command_string(mpv, "seek -5");
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_RIGHT))
+		mpv_command_string(mpv, "seek 5");
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_UP))
+		mpv_command_string(mpv, "seek 60");
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_DOWN))
+		mpv_command_string(mpv, "seek -60");
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_L))
+		mpv_command_string(mpv, "cycle audio");
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_R))
+		mpv_command_string(mpv, "cycle sub");
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_A))
+		mpv_command_string(mpv, "cycle pause");
+
+	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
+			RETRO_DEVICE_ID_JOYPAD_X))
+		mpv_command_string(mpv, "show-progress");
+}
 
 void retro_run(void)
 {
+	retropad_update_input();
 	/* TODO: Implement an audio callback feature in to libmpv */
 	//audio_callback();
 
@@ -283,11 +323,25 @@ bool retro_load_game(const struct retro_game_info *info)
 {
 	/* Supported on most systems. */
 	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
+	struct retro_input_descriptor desc[] = {
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,  "Pause/Play" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,  "Show Progress" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_LEFT,  "Seek -5 seconds" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_UP,    "Seek +60 seconds" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_DOWN,  "Seek -60 seconds" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Seek +5 seconds" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Cycle Audio Track" },
+		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R, "Cycle Subtitle Track" },
+
+		{ 0 },
+	};
 
 	/* Copy the file path to a global variable as we need it in context_reset()
 	 * where mpv is initialised.
 	 */
 	filepath = strdup(info->path);
+
+	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
 	if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
 	{
@@ -300,6 +354,7 @@ bool retro_load_game(const struct retro_game_info *info)
 		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
 		return false;
 	}
+
 	return true;
 }
 
