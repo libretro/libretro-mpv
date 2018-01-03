@@ -84,8 +84,8 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 	};
 
 	info->geometry = (struct retro_game_geometry) {
-		.base_width   = 320,
-		.base_height  = 240,
+		.base_width   = 256,
+		.base_height  = 144,
 		.max_width    = 1920,
 		.max_height   = 1080,
 		.aspect_ratio = -1,
@@ -300,12 +300,38 @@ static void retropad_update_input(void)
 
 void retro_run(void)
 {
+	/* We only need to update the base video size once, and we do it here since
+	 * the input file is not processed during the first
+	 * retro_get_system_av_info() call.
+	 */
+	static bool updated_video_dimensions = false;
+	static int64_t width, height;
+
+	if(updated_video_dimensions == false)
+	{
+		mpv_get_property(mpv, "width", MPV_FORMAT_INT64, &width);
+		mpv_get_property(mpv, "height", MPV_FORMAT_INT64, &height);
+
+		struct retro_game_geometry geometry = {
+			.base_width   = width,
+			.base_height  = height,
+			/* max_width and max_height are ignored */
+			.max_width    = width,
+			.max_height   = height,
+			/* Aspect ratio calculated automatically from base dimensions */
+			.aspect_ratio = -1,
+		};
+
+		environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
+		updated_video_dimensions = true;
+	}
+
 	retropad_update_input();
 	/* TODO: Implement an audio callback feature in to libmpv */
 	//audio_callback();
 
-	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), 320, 240);
-	video_cb(RETRO_HW_FRAME_BUFFER_VALID, 320, 240, 0);
+	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
+	video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 	return;
 }
 
