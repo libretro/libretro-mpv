@@ -1,4 +1,4 @@
-# mpv-libretro
+# libretro-mpv
 
 mpv media player as a libretro core. A proof of concept release is now available.
 
