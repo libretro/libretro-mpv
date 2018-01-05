@@ -24,6 +24,12 @@ static retro_input_state_t input_state_cb;
 
 static mpv_handle *mpv;
 static mpv_opengl_cb_context *mpv_gl;
+
+/* Keep track of the number of events in mpv queue */
+static unsigned int event_waiting = 0;
+
+/* Save the current playback time for context changes */
+static int64_t *playback_time = 0;
 static char *filepath = NULL;
 
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
@@ -35,6 +41,11 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 	va_end(va);
 }
 
+static void on_mpv_events(void *mpv)
+{
+	event_waiting++;
+}
+
 void retro_init(void)
 {
 	return;
@@ -42,7 +53,6 @@ void retro_init(void)
 
 void retro_deinit(void)
 {
-	mpv_terminate_destroy(mpv);
 	return;
 }
 
@@ -135,6 +145,15 @@ static void context_reset(void)
 		return;
 	}
 
+    // When normal mpv events are available.
+    mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
+
+	if(mpv_request_log_messages(mpv, "info") < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "mpv logging failed\n");
+		return;
+	}
+
 	// The OpenGL API is somewhat separate from the normal mpv API. This only
 	// returns NULL if no OpenGL support is compiled.
 	mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
@@ -164,19 +183,28 @@ static void context_reset(void)
 
 	if(mpv_command(mpv, cmd) != 0)
 	{
-		log_cb(RETRO_LOG_ERROR, "failed issue mpv_command\n");
+		log_cb(RETRO_LOG_ERROR, "failed to issue mpv_command\n");
 		return;
 	}
+
+	/* Keep trying until mpv accepts the property.
+	 * This is done to seek to the point in the file after the previous context
+	 * was destroyed. If now context was destroyed previously, the file seeks
+	 * to 0.
+	 *
+	 * This also seems to fix some black screen issues.
+	 */
+	while(mpv_set_property(mpv, "playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
+	{}
 
 	log_cb(RETRO_LOG_INFO, "Context reset.\n");
 }
 
 static void context_destroy(void)
 {
-	free(filepath);
-	filepath = NULL;
-
+	mpv_get_property(mpv, "playback-time", MPV_FORMAT_INT64, &playback_time);
 	mpv_opengl_cb_uninit_gl(mpv_gl);
+	mpv_terminate_destroy(mpv);
 	log_cb(RETRO_LOG_INFO, "Context destroyed.\n");
 }
 
@@ -326,6 +354,30 @@ void retro_run(void)
 		updated_video_dimensions = true;
 	}
 
+	/* Print out logs */
+	if(event_waiting > 0)
+	{
+		while(1)
+		{
+			mpv_event *mp_event = mpv_wait_event(mpv, 0);
+			if(mp_event->event_id == MPV_EVENT_NONE)
+				break;
+
+			log_cb(RETRO_LOG_INFO, "mpv: ");
+			if(mp_event->event_id == MPV_EVENT_LOG_MESSAGE)
+			{
+				struct mpv_event_log_message *msg =
+					(struct mpv_event_log_message *)mp_event->data;
+				log_cb(RETRO_LOG_INFO, "[%s] %s: %s",
+						msg->prefix, msg->level, msg->text);
+			}
+			else
+				log_cb(RETRO_LOG_INFO, "%s\n", mpv_event_name(mp_event->event_id));
+		}
+
+		event_waiting = 0;
+	}
+
 	retropad_update_input();
 	/* TODO: Implement an audio callback feature in to libmpv */
 	//audio_callback();
@@ -398,6 +450,9 @@ bool retro_load_game_special(unsigned type, const struct retro_game_info *info,
 
 void retro_unload_game(void)
 {
+	free(filepath);
+	filepath = NULL;
+
 	return;
 }
 
