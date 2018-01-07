@@ -35,13 +35,6 @@ static int64_t *playback_time = 0;
 /* filepath required globaly as mpv is reopened on context change */
 static char *filepath = NULL;
 
-struct Input
-{
-	unsigned int l : 1;
-	unsigned int r : 1;
-	unsigned int a : 1;
-};
-
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 {
 	(void)level;
@@ -301,6 +294,12 @@ static void audio_callback(void)
 
 static void retropad_update_input(void)
 {
+	struct Input
+	{
+		unsigned int l : 1;
+		unsigned int r : 1;
+		unsigned int a : 1;
+	};
 	struct Input current;
 	static struct Input last;
 
