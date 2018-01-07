@@ -1,33 +1,18 @@
-STATIC_LINKING := 0
-AR             := ar
-DEBUG			:= 1
+STATIC_LINKING	:= 0
+AR				:= ar
+DEBUG			:= 0
 
 ifeq ($(platform),)
-platform = unix
+	platform = unix
 ifeq ($(shell uname -a),)
-   platform = win
+	platform = win
 else ifneq ($(findstring MINGW,$(shell uname -a)),)
-   platform = win
+	platform = win
 else ifneq ($(findstring Darwin,$(shell uname -a)),)
-   platform = osx
+	platform = osx
 else ifneq ($(findstring win,$(shell uname -a)),)
-   platform = win
+	platform = win
 endif
-endif
-
-# system platform
-system_platform = unix
-ifeq ($(shell uname -a),)
-	EXE_EXT = .exe
-	system_platform = win
-else ifneq ($(findstring Darwin,$(shell uname -a)),)
-	system_platform = osx
-	arch = intel
-ifeq ($(shell uname -p),powerpc)
-	arch = ppc
-endif
-else ifneq ($(findstring MINGW,$(shell uname -a)),)
-	system_platform = win
 endif
 
 TARGET_NAME := mpv
@@ -35,46 +20,44 @@ LIBM		= -lm
 
 ifeq ($(ARCHFLAGS),)
 ifeq ($(archs),ppc)
-   ARCHFLAGS = -arch ppc -arch ppc64
+	ARCHFLAGS = -arch ppc -arch ppc64
 else
-   ARCHFLAGS = -arch i386 -arch x86_64
+	ARCHFLAGS = -arch i386 -arch x86_64
 endif
 endif
 
 ifeq ($(platform), osx)
 ifndef ($(NOUNIVERSAL))
-   CFLAGS += $(ARCHFLAGS)
-   LFLAGS += $(ARCHFLAGS)
+	CFLAGS += $(ARCHFLAGS)
+	LFLAGS += $(ARCHFLAGS)
 endif
 endif
 
 ifeq ($(STATIC_LINKING), 1)
-EXT := a
+	EXT := a
 endif
 
 ifeq ($(platform), unix)
 	EXT ?= so
-   TARGET := $(TARGET_NAME)_libretro.$(EXT)
-   fpic := -fPIC
-   SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
+	TARGET := $(TARGET_NAME)_libretro.$(EXT)
+	fpic := -fPIC
+	SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
 else ifeq ($(platform), linux-portable)
-   TARGET := $(TARGET_NAME)_libretro.$(EXT)
-   fpic := -fPIC -nostdlib
-   SHARED := -shared -Wl,--version-script=link.T
+	TARGET := $(TARGET_NAME)_libretro.$(EXT)
+	fpic := -fPIC -nostdlib
+	SHARED := -shared -Wl,--version-script=link.T
 	LIBM :=
 else ifneq (,$(findstring osx,$(platform)))
-   TARGET := $(TARGET_NAME)_libretro.dylib
-   fpic := -fPIC
-   SHARED := -dynamiclib
-else ifneq (,$(findstring ios,$(platform)))
-   TARGET := $(TARGET_NAME)_libretro_ios.dylib
+	TARGET := $(TARGET_NAME)_libretro.dylib
 	fpic := -fPIC
 	SHARED := -dynamiclib
-
+else ifneq (,$(findstring ios,$(platform)))
+	TARGET := $(TARGET_NAME)_libretro_ios.dylib
+	fpic := -fPIC
+	SHARED := -dynamiclib
 ifeq ($(IOSSDK),)
-   IOSSDK := $(shell xcodebuild -version -sdk iphoneos Path)
+	IOSSDK := $(shell xcodebuild -version -sdk iphoneos Path)
 endif
-
 	DEFINES := -DIOS
 	CC = cc -arch armv7 -isysroot $(IOSSDK)
 ifeq ($(platform),ios9)
@@ -83,38 +66,37 @@ CFLAGS += -miphoneos-version-min=8.0
 else
 CC     += -miphoneos-version-min=5.0
 CFLAGS += -miphoneos-version-min=5.0
-endif
+endif #ifneq ios
 else ifneq (,$(findstring qnx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro_qnx.so
-   fpic := -fPIC
-   SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
+	fpic := -fPIC
+	SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
 else ifeq ($(platform), emscripten)
-   TARGET := $(TARGET_NAME)_libretro_emscripten.bc
-   fpic := -fPIC
-   SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
+	TARGET := $(TARGET_NAME)_libretro_emscripten.bc
+	fpic := -fPIC
+	SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
 else ifeq ($(platform), vita)
-   TARGET := $(TARGET_NAME)_vita.a
-   CC = arm-vita-eabi-gcc
-   AR = arm-vita-eabi-ar
-   CFLAGS += -Wl,-q -Wall -O3
+	TARGET := $(TARGET_NAME)_vita.a
+	CC = arm-vita-eabi-gcc
+	AR = arm-vita-eabi-ar
+	CFLAGS += -Wl,-q -Wall -O3
 	STATIC_LINKING = 1
 else
-   CC = gcc
-   TARGET := $(TARGET_NAME)_libretro.dll
-   SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
+	CC = gcc
+	TARGET := $(TARGET_NAME)_libretro.dll
+	SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
 endif
 
 LDFLAGS += $(LIBM) -lmpv
-LIBRETRO-COM	= -Ilibretro-common/include
 
 ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g
 else
-   CFLAGS += -O3
+   CFLAGS += -Ofast -s
 endif
 
 OBJECTS := mpv-libretro.o
-CFLAGS += -Wall -pedantic $(LIBRETRO-COM) $(fpic)
+CFLAGS += -Wall -pedantic $(fpic)
 
 ifneq (,$(findstring qnx,$(platform)))
 CFLAGS += -Wc,-std=c99
@@ -128,7 +110,7 @@ $(TARGET): $(OBJECTS)
 ifeq ($(STATIC_LINKING), 1)
 	$(AR) rcs $@ $(OBJECTS)
 else
-	$(CC) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) $(LDFLAGS)
+	$(CC) $(fpic) $(SHARED) $(CFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 endif
 
 %.o: %.c
