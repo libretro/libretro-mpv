@@ -407,7 +407,7 @@ bool retro_unserialize(const void *data_, size_t size)
 bool retro_load_game(const struct retro_game_info *info)
 {
 	/* Supported on most systems. */
-	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
+	enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
 	struct retro_input_descriptor desc[] = {
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_A,  "Pause/Play" },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X,  "Show Progress" },
@@ -428,10 +428,14 @@ bool retro_load_game(const struct retro_game_info *info)
 
 	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
-	if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+	/* Not bothered if this fails. Assuming the default is selected anyway. */
+	if(!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
 	{
-		fprintf(stderr, "RGB565 is not supported.\n");
-		return false;
+		log_cb(RETRO_LOG_ERROR, "XRGB8888 is not supported.\n");
+
+		/* Try RGB565 */
+		fmt = RETRO_PIXEL_FORMAT_RGB565;
+		environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt);
 	}
 
 	if(!retro_init_hw_context())
