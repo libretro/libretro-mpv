@@ -8,7 +8,7 @@
 #include <mpv/client.h>
 #include <mpv/opengl_cb.h>
 
-#include <libretro.h>
+#include "libretro.h"
 
 static struct retro_hw_render_callback hw_render;
 
