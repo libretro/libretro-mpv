@@ -9,6 +9,7 @@
 #include <mpv/opengl_cb.h>
 
 #include "libretro.h"
+#include "version.h"
 
 static struct retro_hw_render_callback hw_render;
 
@@ -71,7 +72,7 @@ void retro_get_system_info(struct retro_system_info *info)
 {
 	memset(info, 0, sizeof(*info));
 	info->library_name     = "mpv";
-	info->library_version  = "v1";
+	info->library_version  = LIBRETRO_MPV_VERSION;
 	info->need_fullpath    = true;	/* Allow MPV to load the file on its own */
 	info->valid_extensions = "mkv|avi|f4v|f4f|3gp|ogm|flv|mp4|mp3|flac|ogg|m4a|webm|3g2|mov|wmv|mpg|mpeg|vob|asf|divx|m2p|m2ts|ps|ts|mxf|wma|wav";
 }
