@@ -31,7 +31,16 @@ static unsigned int event_waiting = 0;
 
 /* Save the current playback time for context changes */
 static int64_t *playback_time = 0;
+
+/* filepath required globaly as mpv is reopened on context change */
 static char *filepath = NULL;
+
+struct Input
+{
+	unsigned int l : 1;
+	unsigned int r : 1;
+	unsigned int a : 1;
+};
 
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 {
@@ -292,8 +301,37 @@ static void audio_callback(void)
 
 static void retropad_update_input(void)
 {
+	struct Input current;
+	static struct Input last;
+
 	input_poll_cb();
 
+	/* Commands that are called on rising edge only */
+
+	/* A ternary operator is used since input_state_cb returns an int16_t, but
+	 * we only care about whether the button is on or off which is why we store
+	 * the value in a single bit for each button.
+	 * 
+	 * Unsure if saving the memory is worth the extra checks, costing CPU time,
+	 * but both are incredibly miniscule anyway.
+	 */
+	current.l = input_state_cb(0, RETRO_DEVICE_JOYPAD,
+			0, RETRO_DEVICE_ID_JOYPAD_L) != 0 ? 1 : 0;
+	current.r = input_state_cb(0, RETRO_DEVICE_JOYPAD,
+			0, RETRO_DEVICE_ID_JOYPAD_R) != 0 ? 1 : 0;
+	current.a = input_state_cb(0, RETRO_DEVICE_JOYPAD,
+			0, RETRO_DEVICE_ID_JOYPAD_A) != 0 ? 1 : 0;
+
+	if(current.l == 1 && last.l == 0)
+		mpv_command_string(mpv, "cycle audio");
+
+	if(current.r == 1 && last.r == 0)
+		mpv_command_string(mpv, "cycle sub");
+
+	if(current.a == 1 && last.a == 0)
+		mpv_command_string(mpv, "cycle pause");
+
+	/* Press and hold commands with small delay */
 	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
 			RETRO_DEVICE_ID_JOYPAD_LEFT))
 		mpv_command_string(mpv, "seek -5");
@@ -310,21 +348,17 @@ static void retropad_update_input(void)
 			RETRO_DEVICE_ID_JOYPAD_DOWN))
 		mpv_command_string(mpv, "seek -60");
 
-	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
-			RETRO_DEVICE_ID_JOYPAD_L))
-		mpv_command_string(mpv, "cycle audio");
-
-	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
-			RETRO_DEVICE_ID_JOYPAD_R))
-		mpv_command_string(mpv, "cycle sub");
-
-	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
-			RETRO_DEVICE_ID_JOYPAD_A))
-		mpv_command_string(mpv, "cycle pause");
-
+	/* Press and hold commands */
 	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
 			RETRO_DEVICE_ID_JOYPAD_X))
 		mpv_command_string(mpv, "show-progress");
+
+	/* Instead of copying the structs as though they were a union, we assign
+	 * each variable one-by-one to avoid endian issues.
+	 */
+	last.l = current.l;
+	last.r = current.r;
+	last.a = current.a;
 }
 
 void retro_run(void)
