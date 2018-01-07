@@ -16,7 +16,6 @@ endif
 endif
 
 TARGET_NAME := mpv
-LIBM		= -lm
 
 ifeq ($(ARCHFLAGS),)
 ifeq ($(archs),ppc)
@@ -46,7 +45,6 @@ else ifeq ($(platform), linux-portable)
 	TARGET := $(TARGET_NAME)_libretro.$(EXT)
 	fpic := -fPIC -nostdlib
 	SHARED := -shared -Wl,--version-script=link.T
-	LIBM :=
 else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
 	fpic := -fPIC
@@ -87,16 +85,15 @@ else
 	SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
 endif
 
-LDFLAGS += $(LIBM) -lmpv
-
 ifeq ($(DEBUG), 1)
    CFLAGS += -O0 -g
 else
    CFLAGS += -Ofast -s
 endif
 
-OBJECTS := mpv-libretro.o
-CFLAGS += -Wall -pedantic $(fpic)
+OBJECTS	:= mpv-libretro.o
+LDFLAGS	+= -lmpv
+CFLAGS	+= -Wall -pedantic $(fpic)
 
 ifneq (,$(findstring qnx,$(platform)))
 CFLAGS += -Wc,-std=c99
@@ -120,4 +117,3 @@ clean:
 	rm -f $(OBJECTS) $(TARGET)
 
 .PHONY: clean
-
