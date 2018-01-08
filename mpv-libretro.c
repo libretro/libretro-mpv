@@ -332,7 +332,7 @@ static void retropad_update_input(void)
 	if(current.a == 1 && last.a == 0)
 		mpv_command_string(mpv, "cycle pause");
 
-	/* Press and hold commands with small delay */
+	/* TODO #3: Press and hold commands with small delay */
 	if(input_state_cb(0, RETRO_DEVICE_JOYPAD, 0,
 			RETRO_DEVICE_ID_JOYPAD_LEFT))
 		mpv_command_string(mpv, "seek -5");
@@ -415,7 +415,7 @@ void retro_run(void)
 	}
 
 	retropad_update_input();
-	/* TODO: Implement an audio callback feature in to libmpv */
+	/* TODO #2: Implement an audio callback feature in to libmpv */
 	/* audio_callback(); */
 
 	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
