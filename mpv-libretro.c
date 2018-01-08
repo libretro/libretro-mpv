@@ -210,10 +210,7 @@ static void context_reset(void)
 	}
 
 	if(mpv_set_option_string(mpv, "hwdec", "auto") < 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed to enable hwdec");
-		return;
-	}
+		log_cb(RETRO_LOG_ERROR, "failed to set hwdec option");
 
 	if(mpv_command(mpv, cmd) != 0)
 	{
@@ -221,14 +218,14 @@ static void context_reset(void)
 		return;
 	}
 
-	/* Keep trying until mpv accepts the property.
-	 * This is done to seek to the point in the file after the previous context
-	 * was destroyed. If now context was destroyed previously, the file seeks
-	 * to 0.
+	/* Keep trying until mpv accepts the property. This is done to seek to the
+	 * point in the file after the previous context was destroyed. If no
+	 * context was destroyed previously, the file seeks to 0.
 	 *
 	 * This also seems to fix some black screen issues.
 	 */
-	while(mpv_set_property(mpv, "playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
+	while(mpv_set_property(mpv,
+				"playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
 	{}
 
 	log_cb(RETRO_LOG_INFO, "Context reset.\n");
