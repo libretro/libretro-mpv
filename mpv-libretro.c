@@ -178,7 +178,7 @@ static void context_reset(void)
 	}
 
     /* When normal mpv events are available. */
-    mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
+	mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
 
 	if(mpv_request_log_messages(mpv, "info") < 0)
 	{
