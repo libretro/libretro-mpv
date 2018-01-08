@@ -8,7 +8,7 @@ I want to be able to use Retroarch as my movie player on my embedded devices (Ra
 
 ## Compiling
 
-Retroarch must be compiled with `--disable-ffmpeg` to stop the integreated movieplayer from playing the input file.
+Retroarch must be compiled with `--disable-ffmpeg` to stop the integrated movieplayer from playing the input file.
 
 FFmpeg (preferably master branch) must be compiled with `--enable-shared`.
 
