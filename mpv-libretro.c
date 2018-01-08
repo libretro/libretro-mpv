@@ -93,7 +93,19 @@ void retro_get_system_info(struct retro_system_info *info)
 	info->library_name     = "mpv";
 	info->library_version  = LIBRETRO_MPV_VERSION;
 	info->need_fullpath    = true;	/* Allow MPV to load the file on its own */
-	info->valid_extensions = "mkv|avi|f4v|f4f|3gp|ogm|flv|mp4|mp3|flac|ogg|m4a|webm|3g2|mov|wmv|mpg|mpeg|vob|asf|divx|m2p|m2ts|ps|ts|mxf|wma|wav";
+	info->valid_extensions = "264|265|302|669|722|3g2|3gp|aa|aa3|aac|abc|ac3|"
+		"acm|adf|adp|ads|adx|aea|afc|aix|al|amf|ams|ans|ape|apl|aqt|art|asc|"
+		"ast|avc|avi|avr|avs|bcstm|bfstm|bin|bit|bmv|brstm|cdata|cdg|cdxl|cgi|"
+		"cif|daud|dbm|dif|diz|dmf|dsm|dss|dtk|dts|dtshd|dv|eac3|fap|far|flac|"
+		"flm|flv|fsb|g722|g723_1|g729|genh|gsm|h261|h264|h265|h26l|hevc|ice|"
+		"idf|idx|ircam|it|itgz|itr|itz|ivr|j2k|lvf|m2a|m3u8|m4a|m4s|m4v|mac|"
+		"mdgz|mdl|mdr|mdz|med|mid|mj2|mjpeg|mjpg|mk3d|mka|mks|mkv|mlp|mod|mov|"
+		"mp2|mp3|mp4|mpa|mpc|mpeg|mpegts|mpg|mpl2|mpo|msf|mt2|mtaf|mtm|musx|"
+		"mvi|mxg|nfo|nist|nut|oga|ogg|ogv|okt|oma|omg|paf|pjs|psm|ptm|pvf|qcif|"
+		"rco|rgb|rsd|rso|rt|s3gz|s3m|s3r|s3z|sami|sb|sbg|scc|sdr2|sds|sdx|sf|"
+		"shn|sln|smi|son|sph|ss2|stl|stm|str|sub|sup|svag|sw|tak|tco|thd|ts|"
+		"tta|txt|ub|ul|ult|umx|uw|v|v210|vag|vb|vc1|viv|vob|vpk|vqe|vqf|vql|vt|"
+		"vtt|wav|wsd|xl|xm|xmgz|xmr|xmv|xmz|xvag|y4m|yop|yuv|yuv10";
 }
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
