@@ -399,8 +399,8 @@ void retro_run(void)
 
 	if(updated_video_dimensions == false)
 	{
-		mpv_get_property(mpv, "width", MPV_FORMAT_INT64, &width);
-		mpv_get_property(mpv, "height", MPV_FORMAT_INT64, &height);
+		mpv_get_property(mpv, "dwidth", MPV_FORMAT_INT64, &width);
+		mpv_get_property(mpv, "dheight", MPV_FORMAT_INT64, &height);
 
 		struct retro_game_geometry geometry = {
 			.base_width   = width,
