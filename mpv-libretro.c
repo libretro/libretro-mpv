@@ -148,7 +148,7 @@ static void context_reset(void)
 		return;
 	}
 
-    // When normal mpv events are available.
+    /* When normal mpv events are available. */
     mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
 
 	if(mpv_request_log_messages(mpv, "info") < 0)
@@ -157,8 +157,9 @@ static void context_reset(void)
 		return;
 	}
 
-	// The OpenGL API is somewhat separate from the normal mpv API. This only
-	// returns NULL if no OpenGL support is compiled.
+	/* The OpenGL API is somewhat separate from the normal mpv API. This only
+	 * returns NULL if no OpenGL support is compiled.
+	 */
 	mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
 
 	if(!mpv_gl)
@@ -170,8 +171,9 @@ static void context_reset(void)
 	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
 		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
 
-	// Actually using the opengl_cb state has to be explicitly requested.
-	// Otherwise, mpv will create a separate platform window.
+	/* Actually using the opengl_cb state has to be explicitly requested.
+	 * Otherwise, mpv will create a separate platform window.
+	 */
 	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to set VO");
@@ -388,7 +390,7 @@ void retro_run(void)
 		updated_video_dimensions = true;
 	}
 
-	/* Print out logs */
+	/* Print out mpv logs */
 	if(event_waiting > 0)
 	{
 		while(1)
@@ -414,7 +416,7 @@ void retro_run(void)
 
 	retropad_update_input();
 	/* TODO: Implement an audio callback feature in to libmpv */
-	//audio_callback();
+	/* audio_callback(); */
 
 	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
