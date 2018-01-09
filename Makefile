@@ -3,16 +3,26 @@ AR				:= ar
 DEBUG			:= 0
 
 ifeq ($(platform),)
-	platform = unix
-ifeq ($(shell uname -a),)
-	platform = win
-else ifneq ($(findstring MINGW,$(shell uname -a)),)
-	platform = win
-else ifneq ($(findstring Darwin,$(shell uname -a)),)
-	platform = osx
-else ifneq ($(findstring win,$(shell uname -a)),)
-	platform = win
-endif
+   platform = unix
+   ifeq ($(shell uname -s),)
+      EXE_EXT = .exe
+      platform = win
+   else ifneq ($(findstring MINGW,$(shell uname -s)),)
+      platform = win
+   else ifneq ($(findstring Darwin,$(shell uname -s)),)
+      platform = osx
+      ifeq ($(shell uname -p),powerpc)
+         arch = ppc
+      else
+         arch = intel
+      endif
+   else ifneq ($(findstring win,$(shell uname -s)),)
+      platform = win
+   endif
+else ifneq (,$(findstring armv,$(platform)))
+   override platform += unix
+else ifneq (,$(findstring rpi3,$(platform)))
+   override platform += unix
 endif
 
 TARGET_NAME := mpv
@@ -36,15 +46,11 @@ ifeq ($(STATIC_LINKING), 1)
 	EXT := a
 endif
 
-ifeq ($(platform), unix)
+ifneq (,$(findstring unix,$(platform)))
 	EXT ?= so
 	TARGET := $(TARGET_NAME)_libretro.$(EXT)
 	fpic := -fPIC
 	SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
-else ifeq ($(platform), linux-portable)
-	TARGET := $(TARGET_NAME)_libretro.$(EXT)
-	fpic := -fPIC -nostdlib
-	SHARED := -shared -Wl,--version-script=link.T
 else ifneq (,$(findstring osx,$(platform)))
 	TARGET := $(TARGET_NAME)_libretro.dylib
 	fpic := -fPIC
@@ -94,6 +100,10 @@ endif
 OBJECTS	:= mpv-libretro.o
 LDFLAGS	+= -lmpv
 CFLAGS	+= -Wall -pedantic $(fpic)
+
+ifneq (,$(findstring gles,$(platform)))
+   CFLAGS += -DHAVE_OPENGLES
+endif
 
 ifneq (,$(findstring qnx,$(platform)))
 CFLAGS += -Wc,-std=c99
