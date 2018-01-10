@@ -1,6 +1,6 @@
 STATIC_LINKING	:= 0
 AR				:= ar
-DEBUG			:= 0
+DEBUG			:= 1
 
 ifeq ($(platform),)
    platform = unix
