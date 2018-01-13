@@ -1,6 +1,10 @@
 STATIC_LINKING	:= 0
 AR				:= ar
-DEBUG			:= 1
+DEBUG			:= 0
+TARGET_NAME		:= mpv
+PREFIX			:= /usr
+LIBDIR			:= $(PREFIX)/lib
+LIBRETRO_DIR	:= libretro
 
 ifeq ($(platform),)
    platform = unix
@@ -24,8 +28,6 @@ else ifneq (,$(findstring armv,$(platform)))
 else ifneq (,$(findstring rpi3,$(platform)))
    override platform += unix
 endif
-
-TARGET_NAME := mpv
 
 ifeq ($(ARCHFLAGS),)
 ifeq ($(archs),ppc)
@@ -88,18 +90,9 @@ else ifeq ($(platform), vita)
 else
 	CC = gcc
 	TARGET := $(TARGET_NAME)_libretro.dll
-	SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
+	SHARED := -shared -static-libgcc -static-libstdc++ \
+		-Wl,--version-script=link.T -Wl,--no-undefined
 endif
-
-ifeq ($(DEBUG), 1)
-   CFLAGS += -O0 -g
-else
-   CFLAGS += -Ofast -s
-endif
-
-OBJECTS	:= mpv-libretro.o
-LDFLAGS	+= -lmpv
-CFLAGS	+= -Wall -pedantic $(fpic)
 
 ifneq (,$(findstring gles,$(platform)))
    CFLAGS += -DHAVE_OPENGLES
@@ -110,6 +103,18 @@ CFLAGS += -Wc,-std=c99
 else
 CFLAGS += -std=gnu99
 endif
+
+# Always have some debugging information.
+CFLAGS += -g
+ifeq ($(DEBUG), 1)
+   CFLAGS += -Og
+else
+   CFLAGS += -Ofast
+endif
+
+OBJECTS	:= mpv-libretro.o
+LDFLAGS	+= -lmpv
+CFLAGS	+= -Wall -pedantic $(fpic)
 
 all: $(TARGET)
 
@@ -125,5 +130,14 @@ endif
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
+
+install:
+	install -D -m 755 $(TARGET) $(DESTDIR)$(LIBDIR)/$(LIBRETRO_DIR)/$(TARGET)
+
+install-snip:
+	install -D -s -m 755 $(TARGET) $(DESTDIR)$(LIBDIR)/$(LIBRETRO_DIR)/$(TARGET)
+
+uninstall:
+	rm $(DESTDIR)$(LIBDIR)/$(LIBRETRO_DIR)/$(TARGET)
 
 .PHONY: clean
