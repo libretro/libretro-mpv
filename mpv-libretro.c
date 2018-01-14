@@ -159,7 +159,12 @@ void retro_set_environment(retro_environment_t cb)
 
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 {
-	return (void *) hw_render.get_proc_address(name);
+	void *proc_addr = (void *) hw_render.get_proc_address(name);
+
+	if(proc_addr == NULL)
+		log_cb(RETRO_LOG_ERROR, "Failure obtaining %s proc address\n", name);
+
+	return proc_addr;
 }
 
 static void context_reset(void)
