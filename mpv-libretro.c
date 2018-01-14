@@ -159,7 +159,13 @@ void retro_set_environment(retro_environment_t cb)
 
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 {
+	/* The "ISO C forbids conversion of function pointer to object pointer
+	 * type" warning is suppressed.
+	 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
 	void *proc_addr = (void *) hw_render.get_proc_address(name);
+#pragma GCC diagnostic pop
 
 	if(proc_addr == NULL)
 		log_cb(RETRO_LOG_ERROR, "Failure obtaining %s proc address\n", name);
