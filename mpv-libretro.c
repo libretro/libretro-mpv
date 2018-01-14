@@ -22,6 +22,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#ifdef HAVE_LOCALE
+#include <locale.h>
+#endif
+
 #include <mpv/client.h>
 #include <mpv/opengl_cb.h>
 
@@ -162,6 +166,10 @@ static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 static void context_reset(void)
 {
 	const char *cmd[] = {"loadfile", filepath, NULL};
+
+#ifdef HAVE_LOCALE
+	setlocale(LC_NUMERIC, "C");
+#endif
 
 	mpv = mpv_create();
 

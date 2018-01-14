@@ -104,6 +104,10 @@ else
 CFLAGS += -std=gnu99
 endif
 
+ifneq (,$(locale))
+	CFLAGS += -DHAVE_LOCALE
+endif
+
 # Always have some debugging information.
 CFLAGS += -g
 ifeq ($(DEBUG), 1)
