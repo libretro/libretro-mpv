@@ -145,4 +145,13 @@ install-snip:
 uninstall:
 	rm $(DESTDIR)$(LIBDIR)/$(LIBRETRO_DIR)/$(TARGET)
 
+help:
+	@echo 'make <target> [flags]'
+	@echo 'Targets:'
+	@echo ' clean install install-snip uninstall help'
+	@echo 'Flags:'
+	@echo ' platform	String containing platform details.'
+	@echo ' locale		Support toolchain with locale support.'
+	@echo '       		false: disable support, otherwise enabled (default).'
+
 .PHONY: clean
