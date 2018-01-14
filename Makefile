@@ -119,7 +119,7 @@ endif
 
 OBJECTS	:= mpv-libretro.o
 LDFLAGS	+= -lmpv
-CFLAGS	+= -Wall -pedantic $(fpic)
+CFLAGS	+= -Wall -pedantic
 
 all: $(TARGET)
 
