@@ -180,23 +180,20 @@ static void context_reset(void)
 	if(!mpv)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
-		return;
+		exit(EXIT_FAILURE);
 	}
 
 	if(mpv_initialize(mpv) < 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
-		return;
+		exit(EXIT_FAILURE);
 	}
 
     /* When normal mpv events are available. */
 	mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
 
 	if(mpv_request_log_messages(mpv, "info") < 0)
-	{
 		log_cb(RETRO_LOG_ERROR, "mpv logging failed\n");
-		return;
-	}
 
 	/* The OpenGL API is somewhat separate from the normal mpv API. This only
 	 * returns NULL if no OpenGL support is compiled.
@@ -206,28 +203,31 @@ static void context_reset(void)
 	if(!mpv_gl)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle\n");
-		return;
+		exit(EXIT_FAILURE);
 	}
 
 	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
+	{
 		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/* Actually using the opengl_cb state has to be explicitly requested.
 	 * Otherwise, mpv will create a separate platform window.
 	 */
 	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
 	{
-		log_cb(RETRO_LOG_ERROR, "failed to set VO");
-		return;
+		log_cb(RETRO_LOG_ERROR, "failed to set video output to OpenGL\n");
+		exit(EXIT_FAILURE);
 	}
 
 	if(mpv_set_option_string(mpv, "hwdec", "auto") < 0)
-		log_cb(RETRO_LOG_ERROR, "failed to set hwdec option");
+		log_cb(RETRO_LOG_ERROR, "failed to set hwdec option\n");
 
 	if(mpv_command(mpv, cmd) != 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to issue mpv_command\n");
-		return;
+		exit(EXIT_FAILURE);
 	}
 
 	/* Keep trying until mpv accepts the property. This is done to seek to the
