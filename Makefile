@@ -104,7 +104,8 @@ else
 CFLAGS += -std=gnu99
 endif
 
-ifneq (,$(locale))
+# Locale support should be enabled by default, as it's most common.
+ifneq ($(locale),false)
 	CFLAGS += -DHAVE_LOCALE
 endif
 
