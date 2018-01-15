@@ -449,13 +449,31 @@ void retro_run(void)
 			if(mp_event->event_id == MPV_EVENT_NONE)
 				break;
 
-			log_cb(RETRO_LOG_INFO, "mpv: ");
 			if(mp_event->event_id == MPV_EVENT_LOG_MESSAGE)
 			{
 				struct mpv_event_log_message *msg =
 					(struct mpv_event_log_message *)mp_event->data;
 				log_cb(RETRO_LOG_INFO, "[%s] %s: %s",
 						msg->prefix, msg->level, msg->text);
+			}
+			else if(mp_event->event_id == MPV_EVENT_END_FILE)
+			{
+				struct mpv_event_end_file *eof =
+					(struct mpv_event_end_file *)mp_event->data;
+
+				if(eof->reason == MPV_END_FILE_REASON_EOF)
+					environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+#if 0
+				/* The following could be done instead if the file was not
+				 * closed once the end was reached - allowing the user to seek
+				 * back without reopening the file.
+				 */
+				struct retro_message ra_msg = {
+					"Finished playing file", 60 * 5, /* 5 seconds */
+				};
+
+				environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &ra_msg);RETRO_ENVIRONMENT_SHUTDOWN
+#endif
 			}
 			else
 				log_cb(RETRO_LOG_INFO, "%s\n", mpv_event_name(mp_event->event_id));
