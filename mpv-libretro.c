@@ -128,6 +128,9 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 		.sample_rate = sampling_rate,
 	};
 
+	/* We don't know the dimensions of the video yet, so we set some good
+	 * defaults in the meantime.
+	 */
 	info->geometry = (struct retro_game_geometry) {
 		.base_width   = 256,
 		.base_height  = 144,
@@ -418,6 +421,11 @@ void retro_run(void)
 		mpv_get_property(mpv, "dwidth", MPV_FORMAT_INT64, &width);
 		mpv_get_property(mpv, "dheight", MPV_FORMAT_INT64, &height);
 
+		/* We don't know the dimensions of the video when
+		 * retro_get_system_av_info is called, so we have to set it here for
+		 * the correct aspect ratio.
+		 * This is not a temporary change
+		 */
 		struct retro_game_geometry geometry = {
 			.base_width   = width,
 			.base_height  = height,
@@ -428,7 +436,7 @@ void retro_run(void)
 			.aspect_ratio = -1,
 		};
 
-		environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &geometry);
+		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &geometry);
 		updated_video_dimensions = true;
 	}
 
