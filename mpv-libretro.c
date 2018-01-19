@@ -260,30 +260,13 @@ static void context_destroy(void)
 	log_cb(RETRO_LOG_INFO, "Context destroyed.\n");
 }
 
-#ifdef HAVE_OPENGLES
 static bool retro_init_hw_context(void)
 {
-#if defined(HAVE_OPENGLES_3_1)
-	hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES_VERSION;
-	hw_render.version_major = 3;
-	hw_render.version_minor = 1;
-#elif defined(HAVE_OPENGLES3)
-	hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
-#else
+#if defined(HAVE_OPENGLES)
 	hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES2;
-#endif
-	hw_render.context_reset = context_reset;
-	hw_render.context_destroy = context_destroy;
-
-	if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
-		return false;
-
-	return true;
-}
 #else
-static bool retro_init_hw_context(void)
-{
 	hw_render.context_type = RETRO_HW_CONTEXT_OPENGL;
+#endif
 	hw_render.context_reset = context_reset;
 	hw_render.context_destroy = context_destroy;
 
@@ -292,7 +275,6 @@ static bool retro_init_hw_context(void)
 
 	return true;
 }
-#endif
 
 void retro_set_audio_sample(retro_audio_sample_t cb)
 {
