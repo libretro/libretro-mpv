@@ -186,7 +186,7 @@ static void context_reset(void)
 
 	mpv = mpv_create();
 
-	if(!mpv)
+	if(mpv == NULL)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
 		exit(EXIT_FAILURE);
@@ -209,7 +209,7 @@ static void context_reset(void)
 	 */
 	mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
 
-	if(!mpv_gl)
+	if(mpv_gl == NULL)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle\n");
 		exit(EXIT_FAILURE);
@@ -514,7 +514,7 @@ bool retro_load_game(const struct retro_game_info *info)
 	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 
 	/* Not bothered if this fails. Assuming the default is selected anyway. */
-	if(!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
+	if(environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt) == false)
 	{
 		log_cb(RETRO_LOG_ERROR, "XRGB8888 is not supported.\n");
 
@@ -523,7 +523,7 @@ bool retro_load_game(const struct retro_game_info *info)
 		environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt);
 	}
 
-	if(!retro_init_hw_context())
+	if(retro_init_hw_context() == false)
 	{
 		log_cb(RETRO_LOG_ERROR, "HW Context could not be initialized\n");
 		return false;
