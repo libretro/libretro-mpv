@@ -64,6 +64,70 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 	va_end(va);
 }
 
+static void print_mpv_logs(void)
+{
+	/* Print out mpv logs */
+	if(event_waiting > 0)
+	{
+		while(1)
+		{
+			mpv_event *mp_event = mpv_wait_event(mpv, 0);
+			if(mp_event->event_id == MPV_EVENT_NONE)
+				break;
+
+			if(mp_event->event_id == MPV_EVENT_LOG_MESSAGE)
+			{
+				struct mpv_event_log_message *msg =
+					(struct mpv_event_log_message *)mp_event->data;
+				log_cb(RETRO_LOG_INFO, "mpv: [%s] %s: %s",
+						msg->prefix, msg->level, msg->text);
+			}
+			else if(mp_event->event_id == MPV_EVENT_END_FILE)
+			{
+				struct mpv_event_end_file *eof =
+					(struct mpv_event_end_file *)mp_event->data;
+
+				if(eof->reason == MPV_END_FILE_REASON_EOF)
+					environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+#if 0
+				/* The following could be done instead if the file was not
+				 * closed once the end was reached - allowing the user to seek
+				 * back without reopening the file.
+				 */
+				struct retro_message ra_msg = {
+					"Finished playing file", 60 * 5, /* 5 seconds */
+				};
+
+				environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &ra_msg);RETRO_ENVIRONMENT_SHUTDOWN
+#endif
+			}
+			else
+			{
+				log_cb(RETRO_LOG_INFO, "mpv: %s\n",
+						mpv_event_name(mp_event->event_id));
+			}
+		}
+
+		event_waiting = 0;
+	}
+}
+
+static void *get_proc_address_mpv(void *fn_ctx, const char *name)
+{
+	/* The "ISO C forbids conversion of function pointer to object pointer
+	 * type" warning is suppressed.
+	 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+	void *proc_addr = (void *) hw_render.get_proc_address(name);
+#pragma GCC diagnostic pop
+
+	if(proc_addr == NULL)
+		log_cb(RETRO_LOG_ERROR, "Failure obtaining %s proc address\n", name);
+
+	return proc_addr;
+}
+
 static void on_mpv_events(void *mpv)
 {
 	event_waiting++;
@@ -160,22 +224,6 @@ void retro_set_environment(retro_environment_t cb)
 		log_cb = fallback_log;
 }
 
-static void *get_proc_address_mpv(void *fn_ctx, const char *name)
-{
-	/* The "ISO C forbids conversion of function pointer to object pointer
-	 * type" warning is suppressed.
-	 */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-	void *proc_addr = (void *) hw_render.get_proc_address(name);
-#pragma GCC diagnostic pop
-
-	if(proc_addr == NULL)
-		log_cb(RETRO_LOG_ERROR, "Failure obtaining %s proc address\n", name);
-
-	return proc_addr;
-}
-
 static void context_reset(void)
 {
 	const char *cmd[] = {"loadfile", filepath, NULL};
@@ -201,7 +249,7 @@ static void context_reset(void)
     /* When normal mpv events are available. */
 	mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
 
-	if(mpv_request_log_messages(mpv, "info") < 0)
+	if(mpv_request_log_messages(mpv, "v") < 0)
 		log_cb(RETRO_LOG_ERROR, "mpv logging failed\n");
 
 	/* The OpenGL API is somewhat separate from the normal mpv API. This only
@@ -212,13 +260,13 @@ static void context_reset(void)
 	if(mpv_gl == NULL)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle\n");
-		exit(EXIT_FAILURE);
+		goto err;
 	}
 
 	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
-		exit(EXIT_FAILURE);
+		goto err;
 	}
 
 	/* Actually using the opengl_cb state has to be explicitly requested.
@@ -227,7 +275,7 @@ static void context_reset(void)
 	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to set video output to OpenGL\n");
-		exit(EXIT_FAILURE);
+		goto err;
 	}
 
 	if(mpv_set_option_string(mpv, "hwdec", "auto") < 0)
@@ -235,8 +283,8 @@ static void context_reset(void)
 
 	if(mpv_command(mpv, cmd) != 0)
 	{
-		log_cb(RETRO_LOG_ERROR, "failed to issue mpv_command\n");
-		exit(EXIT_FAILURE);
+		log_cb(RETRO_LOG_ERROR, "failed to issue mpv_command to load file\n");
+		goto err;
 	}
 
 	/* Keep trying until mpv accepts the property. This is done to seek to the
@@ -250,6 +298,13 @@ static void context_reset(void)
 	{}
 
 	log_cb(RETRO_LOG_INFO, "Context reset.\n");
+
+	return;
+
+err:
+	/* Print mpv logs to see why mpv failed. */
+	print_mpv_logs();
+	exit(EXIT_FAILURE);
 }
 
 static void context_destroy(void)
@@ -422,47 +477,7 @@ void retro_run(void)
 		updated_video_dimensions = true;
 	}
 
-	/* Print out mpv logs */
-	if(event_waiting > 0)
-	{
-		while(1)
-		{
-			mpv_event *mp_event = mpv_wait_event(mpv, 0);
-			if(mp_event->event_id == MPV_EVENT_NONE)
-				break;
-
-			if(mp_event->event_id == MPV_EVENT_LOG_MESSAGE)
-			{
-				struct mpv_event_log_message *msg =
-					(struct mpv_event_log_message *)mp_event->data;
-				log_cb(RETRO_LOG_INFO, "[%s] %s: %s",
-						msg->prefix, msg->level, msg->text);
-			}
-			else if(mp_event->event_id == MPV_EVENT_END_FILE)
-			{
-				struct mpv_event_end_file *eof =
-					(struct mpv_event_end_file *)mp_event->data;
-
-				if(eof->reason == MPV_END_FILE_REASON_EOF)
-					environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
-#if 0
-				/* The following could be done instead if the file was not
-				 * closed once the end was reached - allowing the user to seek
-				 * back without reopening the file.
-				 */
-				struct retro_message ra_msg = {
-					"Finished playing file", 60 * 5, /* 5 seconds */
-				};
-
-				environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &ra_msg);RETRO_ENVIRONMENT_SHUTDOWN
-#endif
-			}
-			else
-				log_cb(RETRO_LOG_INFO, "%s\n", mpv_event_name(mp_event->event_id));
-		}
-
-		event_waiting = 0;
-	}
+	print_mpv_logs();
 
 	retropad_update_input();
 	/* TODO #2: Implement an audio callback feature in to libmpv */
