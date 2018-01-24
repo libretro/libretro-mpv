@@ -295,7 +295,10 @@ static void context_reset(void)
 	 */
 	while(mpv_set_property(mpv,
 				"playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
-	{}
+	{
+		/* Garbage fix to overflowing log */
+		usleep(10);
+	}
 
 	log_cb(RETRO_LOG_INFO, "Context reset.\n");
 
