@@ -15,6 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <dlfcn.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -121,6 +122,20 @@ static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 #pragma GCC diagnostic ignored "-Wpedantic"
 	void *proc_addr = (void *) hw_render.get_proc_address(name);
 #pragma GCC diagnostic pop
+
+    // EGL 1.4 (supported by the RPI firmware) does not necessarily return
+    // function pointers for core functions.
+    if (!proc_addr) {
+		void *h = dlopen("/opt/vc/lib/libGLESv2.so", RTLD_LAZY);
+
+		if (!h)
+			h = dlopen("/usr/lib/libGLESv2.so", RTLD_LAZY);
+
+        if (h) {
+            proc_addr = dlsym(h, name);
+            dlclose(h);
+        }
+    }
 
 	if(proc_addr == NULL)
 		log_cb(RETRO_LOG_ERROR, "Failure obtaining %s proc address\n", name);
@@ -286,6 +301,7 @@ static void context_reset(void)
 		log_cb(RETRO_LOG_ERROR, "failed to issue mpv_command to load file\n");
 		goto err;
 	}
+
 
 	/* Keep trying until mpv accepts the property. This is done to seek to the
 	 * point in the file after the previous context was destroyed. If no
