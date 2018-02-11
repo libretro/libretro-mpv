@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #ifdef HAVE_LOCALE
 #include <locale.h>
@@ -49,9 +48,6 @@ static mpv_opengl_cb_context *mpv_gl;
 
 /* Keep track of the number of events in mpv queue */
 static unsigned int event_waiting = 0;
-
-/* Save the current playback time for context changes */
-static int64_t *playback_time = 0;
 
 /* filepath required globaly as mpv is reopened on context change */
 static char *filepath = NULL;
@@ -151,11 +147,37 @@ static void on_mpv_events(void *mpv)
 
 void retro_init(void)
 {
+#ifdef HAVE_LOCALE
+	setlocale(LC_NUMERIC, "C");
+#endif
+
+	mpv = mpv_create();
+
+	if(mpv == NULL)
+	{
+		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if(mpv_initialize(mpv) < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
+		exit(EXIT_FAILURE);
+	}
+
+    /* When normal mpv events are available. */
+	mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
+
+	if(mpv_request_log_messages(mpv, "v") < 0)
+		log_cb(RETRO_LOG_ERROR, "mpv logging failed\n");
+
 	return;
 }
 
 void retro_deinit(void)
 {
+	mpv_opengl_cb_uninit_gl(mpv_gl);
+	mpv_terminate_destroy(mpv);
 	return;
 }
 
@@ -242,31 +264,14 @@ void retro_set_environment(retro_environment_t cb)
 
 static void context_reset(void)
 {
+	static bool init = false;
 	const char *cmd[] = {"loadfile", filepath, NULL};
 
-#ifdef HAVE_LOCALE
-	setlocale(LC_NUMERIC, "C");
-#endif
-
-	mpv = mpv_create();
-
-	if(mpv == NULL)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if(mpv_initialize(mpv) < 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
-		exit(EXIT_FAILURE);
-	}
-
-    /* When normal mpv events are available. */
-	mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
-
-	if(mpv_request_log_messages(mpv, "v") < 0)
-		log_cb(RETRO_LOG_ERROR, "mpv logging failed\n");
+	/* Some mpv initialisation is only required when first started, and may
+	 * only be done when we have an OpenGL context.
+	 */
+	if(init == true)
+		return;
 
 	/* The OpenGL API is somewhat separate from the normal mpv API. This only
 	 * returns NULL if no OpenGL support is compiled.
@@ -303,20 +308,13 @@ static void context_reset(void)
 		goto err;
 	}
 
+	/* Wait for the file to be loaded before attempting to draw frames. */
+	for(mpv_event *mp_event = mpv_wait_event(mpv, -1);
+			mp_event->event_id != MPV_EVENT_FILE_LOADED;
+			mp_event = mpv_wait_event(mpv, -1))
+	{}
 
-	/* Keep trying until mpv accepts the property. This is done to seek to the
-	 * point in the file after the previous context was destroyed. If no
-	 * context was destroyed previously, the file seeks to 0.
-	 *
-	 * This also seems to fix some black screen issues.
-	 */
-	while(mpv_set_property(mpv,
-				"playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
-	{
-		/* Garbage fix to overflowing log */
-		usleep(10);
-	}
-
+	init = true;
 	log_cb(RETRO_LOG_INFO, "Context reset.\n");
 
 	return;
@@ -329,9 +327,6 @@ err:
 
 static void context_destroy(void)
 {
-	mpv_get_property(mpv, "playback-time", MPV_FORMAT_INT64, &playback_time);
-	mpv_opengl_cb_uninit_gl(mpv_gl);
-	mpv_terminate_destroy(mpv);
 	log_cb(RETRO_LOG_INFO, "Context destroyed.\n");
 }
 
@@ -537,7 +532,6 @@ bool retro_load_game(const struct retro_game_info *info)
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_RIGHT, "Seek +5 seconds" },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L,     "Cycle Audio Track" },
 		{ 0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R, "Cycle Subtitle Track" },
-
 		{ 0 },
 	};
 
@@ -577,7 +571,6 @@ void retro_unload_game(void)
 {
 	free(filepath);
 	filepath = NULL;
-
 	return;
 }
 
