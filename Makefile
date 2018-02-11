@@ -98,12 +98,6 @@ ifneq (,$(findstring gles,$(platform)))
    CFLAGS += -DHAVE_OPENGLES
 endif
 
-ifneq (,$(findstring qnx,$(platform)))
-CFLAGS += -Wc,-std=c99
-else
-CFLAGS += -std=gnu99
-endif
-
 # Locale support should be enabled by default, as it's most common.
 ifneq ($(locale),false)
 	CFLAGS += -DHAVE_LOCALE
@@ -119,7 +113,7 @@ endif
 
 OBJECTS	:= mpv-libretro.o
 LDFLAGS	+= -lmpv -ldl
-CFLAGS	+= -Wall -pedantic
+CFLAGS	+= -Wall -pedantic -std=gnu99
 
 all: $(TARGET)
 

@@ -123,9 +123,10 @@ static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 	void *proc_addr = (void *) hw_render.get_proc_address(name);
 #pragma GCC diagnostic pop
 
-    // EGL 1.4 (supported by the RPI firmware) does not necessarily return
-    // function pointers for core functions.
-    if (!proc_addr) {
+	/* EGL 1.4 (supported by the RPI firmware) does not necessarily return
+	 * function pointers for core functions.
+	 */
+	if (!proc_addr) {
 		void *h = dlopen("/opt/vc/lib/libGLESv2.so", RTLD_LAZY);
 
 		if (!h)
