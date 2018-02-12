@@ -328,6 +328,11 @@ static void context_reset(void)
 		usleep(10);
 	}
 
+	/* TODO #2: Check for the highest samplerate in audio stream, and use that.
+	 * Fall back to 48kHz otherwise.
+	 */
+	mpv_set_option_string(mpv, "audio-samplerate", "48000");
+
 	log_cb(RETRO_LOG_INFO, "Context reset.\n");
 
 	return;
@@ -394,16 +399,22 @@ void retro_reset(void)
 
 static void audio_callback(void)
 {
-	static const int len = 44100/60;
-	static int16_t frames[44100/60];
-	int mpv_len = mpv_audio_callback(&frames, len*2);
+	/* Obtain len samples to reduce lag. */
+	int len = 2*1024;
+	static int16_t frames[512];
 
-	//printf("mpv cb: %d\n", mpv_len);
-	if(mpv_len < 0)
-		return;
+	while(len > 0)
+	{
+		int mpv_len = mpv_audio_callback(&frames, len > 512 ? 512*2 : len*2);
+		//printf("mpv cb: %d\n", mpv_len);
+		if(mpv_len < 1)
+			return;
 
-	//printf("acb: %lu\n", audio_batch_cb(frames, mpv_len));
-	audio_batch_cb(frames, mpv_len);
+		len -= mpv_len;
+
+		//printf("acb: %lu\n", audio_batch_cb(frames, mpv_len));
+		audio_batch_cb(frames, mpv_len);
+	}
 }
 
 static void retropad_update_input(void)
@@ -503,8 +514,18 @@ void retro_run(void)
 			.aspect_ratio = -1,
 		};
 
+		struct retro_system_timing timing = {
+			.fps = 60.0f,
+			.sample_rate = 48000.0f,
+		};
+
+		struct retro_system_av_info av_info = {
+			.geometry = geometry,
+			.timing = timing,
+		};
+
 		if(width > 0 && height > 0)
-			environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &geometry);
+			environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &av_info);
 
 		updated_video_dimensions = true;
 	}
@@ -512,8 +533,6 @@ void retro_run(void)
 	print_mpv_logs();
 
 	retropad_update_input();
-	/* TODO #2: Implement an audio callback feature in to libmpv */
-	audio_callback();
 
 	if(frame_queue > 0)
 	{
@@ -524,6 +543,8 @@ void retro_run(void)
 	else
 		video_cb(NULL, width, height, 0);
 
+	/* TODO #2: Implement an audio callback feature in to libmpv */
+	audio_callback();
 	return;
 }
 
