@@ -1,16 +1,16 @@
 /* mpv media player libretro core
  * Copyright (C) 2018 Mahyar Koshkouei
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
@@ -414,7 +414,7 @@ static void retropad_update_input(void)
 	/* A ternary operator is used since input_state_cb returns an int16_t, but
 	 * we only care about whether the button is on or off which is why we store
 	 * the value in a single bit for each button.
-	 * 
+	 *
 	 * Unsure if saving the memory is worth the extra checks, costing CPU time,
 	 * but both are incredibly miniscule anyway.
 	 */
