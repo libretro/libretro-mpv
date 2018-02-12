@@ -200,7 +200,7 @@ void retro_get_system_info(struct retro_system_info *info)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-	float sampling_rate = 44100.0f;
+	float sampling_rate = 48000.0f;
 
 	struct retro_variable var = { .key = "test_aspect" };
 	environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
