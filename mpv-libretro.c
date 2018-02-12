@@ -204,7 +204,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 		sampling_rate = strtof(var.value, NULL);
 
 	info->timing = (struct retro_system_timing) {
-		.fps = 60.0,
+		.fps = 24.0,
 		.sample_rate = sampling_rate,
 	};
 
@@ -294,6 +294,8 @@ static void context_reset(void)
 		goto err;
 	}
 
+	mpv_set_option_string(mpv, "ao", "audio-cb");
+
 	if(mpv_set_option_string(mpv, "hwdec", "auto") < 0)
 		log_cb(RETRO_LOG_ERROR, "failed to set hwdec option\n");
 
@@ -381,20 +383,13 @@ void retro_reset(void)
 	return;
 }
 
-#if 0
 static void audio_callback(void)
 {
-	static unsigned phase;
-
-	for (unsigned i = 0; i < 30000 / 60; i++, phase++)
-	{
-		int16_t val = 0x800 * sinf(2.0f * M_PI * phase * 300.0f / 30000.0f);
-		audio_cb(val, val);
-	}
-
-	phase %= 100;
+	static const int len = 5*1280;
+	static int16_t frames[5*1280];
+	printf("mpv cb: %d\n", mpv_audio_callback(frames, len));
+	printf("acb: %lu\n", audio_batch_cb(frames, len));
 }
-#endif
 
 static void retropad_update_input(void)
 {
@@ -501,7 +496,7 @@ void retro_run(void)
 
 	retropad_update_input();
 	/* TODO #2: Implement an audio callback feature in to libmpv */
-	/* audio_callback(); */
+	audio_callback();
 
 	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
