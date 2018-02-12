@@ -56,6 +56,13 @@ static int64_t *playback_time = 0;
 /* filepath required globaly as mpv is reopened on context change */
 static char *filepath = NULL;
 
+static volatile int frame_queue = 0;
+
+void queue_new_frame(void *cb_ctx)
+{
+	frame_queue++;
+}
+
 static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 {
 	(void)level;
@@ -193,7 +200,7 @@ void retro_get_system_info(struct retro_system_info *info)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-	float sampling_rate = 48000.0f;
+	float sampling_rate = 44100.0f;
 
 	struct retro_variable var = { .key = "test_aspect" };
 	environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
@@ -204,7 +211,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 		sampling_rate = strtof(var.value, NULL);
 
 	info->timing = (struct retro_system_timing) {
-		.fps = 24.0,
+		.fps = 60.0,
 		.sample_rate = sampling_rate,
 	};
 
@@ -293,6 +300,8 @@ static void context_reset(void)
 		log_cb(RETRO_LOG_ERROR, "failed to set video output to OpenGL\n");
 		goto err;
 	}
+
+	mpv_opengl_cb_set_update_callback(mpv_gl, queue_new_frame, NULL);
 
 	mpv_set_option_string(mpv, "ao", "audio-cb");
 
@@ -385,10 +394,16 @@ void retro_reset(void)
 
 static void audio_callback(void)
 {
-	static const int len = 5*1280;
-	static int16_t frames[5*1280];
-	printf("mpv cb: %d\n", mpv_audio_callback(frames, len));
-	printf("acb: %lu\n", audio_batch_cb(frames, len));
+	static const int len = 44100/60;
+	static int16_t frames[44100/60];
+	int mpv_len = mpv_audio_callback(&frames, len*2);
+
+	//printf("mpv cb: %d\n", mpv_len);
+	if(mpv_len < 0)
+		return;
+
+	//printf("acb: %lu\n", audio_batch_cb(frames, mpv_len));
+	audio_batch_cb(frames, mpv_len);
 }
 
 static void retropad_update_input(void)
@@ -466,7 +481,7 @@ void retro_run(void)
 	 * retro_get_system_av_info() call.
 	 */
 	static bool updated_video_dimensions = false;
-	static int64_t width, height;
+	static int64_t width = 0, height = 0;
 
 	if(updated_video_dimensions == false)
 	{
@@ -488,7 +503,9 @@ void retro_run(void)
 			.aspect_ratio = -1,
 		};
 
-		environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &geometry);
+		if(width > 0 && height > 0)
+			environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &geometry);
+
 		updated_video_dimensions = true;
 	}
 
@@ -498,8 +515,15 @@ void retro_run(void)
 	/* TODO #2: Implement an audio callback feature in to libmpv */
 	audio_callback();
 
-	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
-	video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
+	if(frame_queue > 0)
+	{
+		mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
+		video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
+		frame_queue--;
+	}
+	else
+		video_cb(NULL, width, height, 0);
+
 	return;
 }
 
