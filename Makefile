@@ -112,7 +112,7 @@ else
 endif
 
 OBJECTS	:= mpv-libretro.o
-LDFLAGS	+= -lmpv -ldl
+LDFLAGS	+= -lmpv -ldl -lm
 CFLAGS	+= -Wall -pedantic -std=gnu99
 
 all: $(TARGET)
