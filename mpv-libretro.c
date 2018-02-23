@@ -16,6 +16,7 @@
  */
 
 #include <dlfcn.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -305,6 +306,9 @@ static void context_reset(void)
 
 	mpv_set_option_string(mpv, "ao", "audio-cb");
 
+	/* Attempt to enable hardware acceleration. MPV will fallback to software
+	 * decoding on failure.
+	 */
 	if(mpv_set_option_string(mpv, "hwdec", "auto") < 0)
 		log_cb(RETRO_LOG_ERROR, "failed to set hwdec option\n");
 
@@ -330,8 +334,14 @@ static void context_reset(void)
 
 	/* TODO #2: Check for the highest samplerate in audio stream, and use that.
 	 * Fall back to 48kHz otherwise.
+	 * We currently force the audio to be sampled at 48KHz.
 	 */
 	mpv_set_option_string(mpv, "audio-samplerate", "48000");
+	mpv_set_option_string(mpv, "opengl-swapinterval", "0");
+
+	/* The following works best when vsync is switched off in Retroarch. */
+	//mpv_set_option_string(mpv, "video-sync", "display-resample");
+	//mpv_set_option_string(mpv, "display-fps", "60");
 
 	log_cb(RETRO_LOG_INFO, "Context reset.\n");
 
@@ -397,10 +407,10 @@ void retro_reset(void)
 	return;
 }
 
-static void audio_callback(void)
+static void audio_callback(double fps)
 {
 	/* Obtain len samples to reduce lag. */
-	int len = 2*1024;
+	int len = 48000 / (int)floor(fps);
 	static int16_t frames[512];
 
 	while(len > 0)
@@ -493,11 +503,13 @@ void retro_run(void)
 	 */
 	static bool updated_video_dimensions = false;
 	static int64_t width = 0, height = 0;
+	static double container_fps = 30.0f;
 
 	if(updated_video_dimensions == false)
 	{
 		mpv_get_property(mpv, "dwidth", MPV_FORMAT_INT64, &width);
 		mpv_get_property(mpv, "dheight", MPV_FORMAT_INT64, &height);
+		mpv_get_property(mpv, "container-fps", MPV_FORMAT_DOUBLE, &container_fps);
 
 		/* We don't know the dimensions of the video when
 		 * retro_get_system_av_info is called, so we have to set it here for
@@ -514,8 +526,10 @@ void retro_run(void)
 			.aspect_ratio = -1,
 		};
 
+		log_cb(RETRO_LOG_INFO, "Setting fps to %f\n", container_fps);
+
 		struct retro_system_timing timing = {
-			.fps = 60.0f,
+			.fps = container_fps,
 			.sample_rate = 48000.0f,
 		};
 
@@ -534,6 +548,10 @@ void retro_run(void)
 
 	retropad_update_input();
 
+	/* TODO #2: Implement an audio callback feature in to libmpv */
+	audio_callback(container_fps);
+
+#if 1
 	if(frame_queue > 0)
 	{
 		mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
@@ -542,9 +560,10 @@ void retro_run(void)
 	}
 	else
 		video_cb(NULL, width, height, 0);
-
-	/* TODO #2: Implement an audio callback feature in to libmpv */
-	audio_callback();
+#else
+	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
+	video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
+#endif
 	return;
 }
 
