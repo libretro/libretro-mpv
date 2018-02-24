@@ -17,7 +17,7 @@
 
 /* Required for nanosleep */
 #define _POSIX_C_SOURCE 199309L
- 
+
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -37,6 +37,8 @@
 #include <mpv/opengl_cb.h>
 
 #include <libretro.h>
+#include <retro_timers.h>
+
 #include "version.h"
 
 static struct retro_hw_render_callback hw_render;
@@ -339,8 +341,7 @@ static void context_reset(void)
 				"playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
 	{
 		/* Garbage fix to overflowing log */
-		static struct timespec ts = { 0, 10 * 1000 };
-		nanosleep(&ts, NULL);
+		retro_sleep(10);
 	}
 
 	/* TODO #2: Check for the highest samplerate in audio stream, and use that.
