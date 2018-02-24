@@ -14,14 +14,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <dlfcn.h>
+ 
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#ifdef HAVE_OPENGLES
+#include <dlfcn.h>
+#endif
 
 #ifdef HAVE_LOCALE
 #include <locale.h>
@@ -30,7 +33,7 @@
 #include <mpv/client.h>
 #include <mpv/opengl_cb.h>
 
-#include "libretro.h"
+#include <libretro.h>
 #include "version.h"
 
 static struct retro_hw_render_callback hw_render;
@@ -131,20 +134,24 @@ static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 	void *proc_addr = (void *) hw_render.get_proc_address(name);
 #pragma GCC diagnostic pop
 
+#ifdef HAVE_OPENGLES
 	/* EGL 1.4 (supported by the RPI firmware) does not necessarily return
 	 * function pointers for core functions.
 	 */
-	if (!proc_addr) {
-		void *h = dlopen("/opt/vc/lib/libGLESv2.so", RTLD_LAZY);
+	if (!proc_addr)
+   {
+      void *h = dlopen("/opt/vc/lib/libGLESv2.so", RTLD_LAZY);
 
-		if (!h)
-			h = dlopen("/usr/lib/libGLESv2.so", RTLD_LAZY);
+      if (!h)
+         h = dlopen("/usr/lib/libGLESv2.so", RTLD_LAZY);
 
-        if (h) {
-            proc_addr = dlsym(h, name);
-            dlclose(h);
-        }
-    }
+      if (h)
+      {
+         proc_addr = dlsym(h, name);
+         dlclose(h);
+      }
+   }
+#endif
 
 	if(proc_addr == NULL)
 		log_cb(RETRO_LOG_ERROR, "Failure obtaining %s proc address\n", name);
