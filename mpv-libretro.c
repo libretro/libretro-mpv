@@ -14,13 +14,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
+/* Required for nanosleep */
+#define _POSIX_C_SOURCE 199309L
  
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <time.h>
 
 #ifdef HAVE_OPENGLES
 #include <dlfcn.h>
@@ -336,7 +339,8 @@ static void context_reset(void)
 				"playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
 	{
 		/* Garbage fix to overflowing log */
-		usleep(10);
+		static struct timespec ts = { 0, 10 * 1000 };
+		nanosleep(&ts, NULL);
 	}
 
 	/* TODO #2: Check for the highest samplerate in audio stream, and use that.
@@ -610,7 +614,13 @@ bool retro_load_game(const struct retro_game_info *info)
 	/* Copy the file path to a global variable as we need it in context_reset()
 	 * where mpv is initialised.
 	 */
-	filepath = strdup(info->path);
+	if((filepath = malloc(strlen(info->path)+1)) == NULL)
+	{
+		log_cb(RETRO_LOG_ERROR, "Unable to allocate memory for filepath\n");
+		return false;
+	}
+
+	strcpy(filepath,info->path);
 
 	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 

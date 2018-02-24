@@ -112,14 +112,12 @@ else
 endif
 
 OBJECTS	:= mpv-libretro.o
-LDFLAGS	+= -lmpv
-CFLAGS	+= -Wall -pedantic -std=c99
+LDFLAGS	+= -lmpv -lm
+CFLAGS	+= -Wall -pedantic -std=c99 -I.
 
 ifneq (,$(findstring gles,$(platform)))
-LDFLAGS += -ldl 
+   LDFLAGS += -ldl 
 endif
-
-LDFLAGS += -lm
 
 all: $(TARGET)
 
