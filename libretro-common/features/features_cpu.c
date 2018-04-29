@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2017 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (features_cpu.c).
@@ -219,6 +219,8 @@ retro_time_t cpu_features_get_time_usec(void)
    return sys_time_get_system_time();
 #elif defined(GEKKO)
    return ticks_to_microsecs(gettime());
+#elif defined(SWITCH)
+   return (svcGetSystemTick() * 10) / 192;
 #elif defined(_POSIX_MONOTONIC_CLOCK) || defined(__QNX__) || defined(ANDROID) || defined(__MACH__)
    struct timespec tv = {0};
    if (ra_clock_gettime(CLOCK_MONOTONIC, &tv) < 0)
@@ -236,8 +238,6 @@ retro_time_t cpu_features_get_time_usec(void)
    return sceKernelGetProcessTimeWide();
 #elif defined(WIIU)
    return ticks_to_us(OSGetSystemTime());
-#elif defined(SWITCH)
-   return (svcGetSystemTick() * 10) / 192;
 #else
 #error "Your platform does not have a timer function implemented in cpu_features_get_time_usec(). Cannot continue."
 #endif
@@ -649,6 +649,10 @@ uint64_t cpu_features_get(void)
    if (sysctlbyname("hw.optional.neon", NULL, &len, NULL, 0) == 0)
       cpu |= RETRO_SIMD_NEON;
 
+#elif defined(_XBOX1)
+   cpu |= RETRO_SIMD_MMX;
+   cpu |= RETRO_SIMD_SSE;
+   cpu |= RETRO_SIMD_MMXEXT;
 #elif defined(CPU_X86)
    (void)avx_flags;
 
