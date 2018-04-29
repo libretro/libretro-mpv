@@ -34,7 +34,7 @@
 #endif
 
 #include <mpv/client.h>
-#include <mpv/opengl_cb.h>
+#include <mpv/render_gl.h>
 
 #include <libretro.h>
 #include <retro_timers.h>
@@ -54,7 +54,7 @@ static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
 
 static mpv_handle *mpv;
-static mpv_opengl_cb_context *mpv_gl;
+static mpv_render_context *mpv_gl;
 
 /* Keep track of the number of events in mpv queue */
 static unsigned int event_waiting = 0;
@@ -67,7 +67,7 @@ static char *filepath = NULL;
 
 static volatile int frame_queue = 0;
 
-void queue_new_frame(void *cb_ctx)
+void on_mpv_redraw(void *cb_ctx)
 {
 	frame_queue++;
 }
@@ -288,33 +288,21 @@ static void context_reset(void)
 	if(mpv_request_log_messages(mpv, "v") < 0)
 		log_cb(RETRO_LOG_ERROR, "mpv logging failed\n");
 
-	/* The OpenGL API is somewhat separate from the normal mpv API. This only
-	 * returns NULL if no OpenGL support is compiled.
-	 */
-	mpv_gl = mpv_get_sub_api(mpv, MPV_SUB_API_OPENGL_CB);
+	mpv_render_param params[] = {
+		{MPV_RENDER_PARAM_API_TYPE, MPV_RENDER_API_TYPE_OPENGL},
+		{MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &(mpv_opengl_init_params){
+			.get_proc_address = get_proc_address_mpv,
+		}},
+		{0}
+	};
 
-	if(mpv_gl == NULL)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed to create mpv GL API handle\n");
-		goto err;
-	}
-
-	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
+	if(mpv_render_context_create(&mpv_gl, mpv, params) < 0)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
 		goto err;
 	}
 
-	/* Actually using the opengl_cb state has to be explicitly requested.
-	 * Otherwise, mpv will create a separate platform window.
-	 */
-	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
-	{
-		log_cb(RETRO_LOG_ERROR, "failed to set video output to OpenGL\n");
-		goto err;
-	}
-
-	mpv_opengl_cb_set_update_callback(mpv_gl, queue_new_frame, NULL);
+	mpv_render_context_set_update_callback(mpv_gl, on_mpv_redraw, NULL);
 
 	mpv_set_option_string(mpv, "ao", "audio-cb");
 
@@ -368,7 +356,7 @@ err:
 static void context_destroy(void)
 {
 	mpv_get_property(mpv, "playback-time", MPV_FORMAT_INT64, &playback_time);
-	mpv_opengl_cb_uninit_gl(mpv_gl);
+	mpv_render_context_free(mpv_gl);
 	mpv_terminate_destroy(mpv);
 	log_cb(RETRO_LOG_INFO, "Context destroyed.\n");
 }
@@ -566,7 +554,16 @@ void retro_run(void)
 #if 1
 	if(frame_queue > 0)
 	{
-		mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
+		mpv_render_param params[] = {
+			{MPV_RENDER_PARAM_OPENGL_FBO, &(mpv_opengl_fbo){
+				.fbo = hw_render.get_current_framebuffer(),
+				.w = width,
+				.h = height,
+			}},
+			{MPV_RENDER_PARAM_FLIP_Y, &(int){1}},
+			{0}
+		};
+		mpv_render_context_render(mpv_gl, params);
 		video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 		frame_queue--;
 	}
