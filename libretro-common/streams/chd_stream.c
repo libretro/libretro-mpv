@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2017 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (chd_stream.c).
@@ -23,7 +23,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
+
+#include <boolean.h>
 
 #include <streams/chd_stream.h>
 #include <retro_endianness.h>
@@ -385,7 +386,7 @@ char *chdstream_gets(chdstream_t *stream, char *buffer, size_t len)
    return buffer;
 }
 
-size_t chdstream_tell(chdstream_t *stream)
+uint64_t chdstream_tell(chdstream_t *stream)
 {
    return stream->offset;
 }
@@ -395,9 +396,9 @@ void chdstream_rewind(chdstream_t *stream)
    stream->offset = 0;
 }
 
-int chdstream_seek(chdstream_t *stream, ssize_t offset, int whence)
+int64_t chdstream_seek(chdstream_t *stream, int64_t offset, int whence)
 {
-   ssize_t new_offset;
+   int64_t new_offset;
 
    switch (whence)
    {
@@ -422,4 +423,9 @@ int chdstream_seek(chdstream_t *stream, ssize_t offset, int whence)
 
    stream->offset = new_offset;
    return 0;
+}
+
+ssize_t chdstream_get_size(chdstream_t *stream)
+{
+  return stream->track_end;
 }

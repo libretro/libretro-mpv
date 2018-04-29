@@ -1,4 +1,4 @@
-/* Copyright  (C) 2010-2017 The RetroArch team
+/* Copyright  (C) 2010-2018 The RetroArch team
  *
  * ---------------------------------------------------------------------------------------
  * The following license statement only applies to this file (net_http.c).
@@ -33,6 +33,7 @@
 #include <compat/strl.h>
 #include <string/stdstring.h>
 #include <retro_common_api.h>
+#include <retro_miscellaneous.h>
 
 enum
 {
@@ -97,12 +98,13 @@ void urlencode_lut_init()
 
    for (i = 0; i < 256; i++)
    {
-      urlencode_lut[i] = isalnum(i) || i == '*' || i == '-' || i == '.' || i == '_' ? i : (i == ' ') ? '+' : 0;
+      urlencode_lut[i] = isalnum(i) || i == '*' || i == '-' || i == '.' || i == '_' || i == '/' ? i : 0;
    }
 }
 
-/* caller is responsible for deleting the destination buffer */
-void net_http_urlencode_full(char **dest, const char *source)
+/* URL Encode a string
+   caller is responsible for deleting the destination buffer */
+void net_http_urlencode(char **dest, const char *source)
 {
    char *enc  = NULL;
    /* Assume every character will be encoded, so we need 3 times the space. */
@@ -127,6 +129,38 @@ void net_http_urlencode_full(char **dest, const char *source)
    }
 
    (*dest)[len - 1] = '\0';
+}
+
+/* Re-encode a full URL */
+void net_http_urlencode_full(char *dest,
+      const char *source, size_t size)
+{
+   char *tmp                         = NULL;
+   char url_domain[PATH_MAX_LENGTH]  = {0};
+   char url_path[PATH_MAX_LENGTH]    = {0};
+   int count                         = 0;
+
+   strlcpy (url_path, source, sizeof(url_path));
+   tmp = url_path;
+
+   while (count < 3 && tmp[0] != '\0')
+   {
+      tmp = strchr(tmp, '/');
+      count++;
+      tmp++;
+   }
+
+   strlcpy(url_domain, source, tmp - url_path);
+
+   strlcpy(url_path,
+         source + strlen(url_domain) + 1,
+         strlen(tmp) + 1
+         );
+
+   tmp = NULL;
+   net_http_urlencode(&tmp, url_path);
+   snprintf(dest, size, "%s/%s", url_domain, tmp);
+   free (tmp);
 }
 
 static int net_http_new_socket(struct http_connection_t *conn)
