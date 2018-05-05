@@ -304,7 +304,7 @@ static void context_reset(void)
 
 	mpv_render_context_set_update_callback(mpv_gl, on_mpv_redraw, NULL);
 
-	mpv_set_option_string(mpv, "ao", "audio-cb");
+	//mpv_set_option_string(mpv, "ao", "audio-cb");
 
 	/* Attempt to enable hardware acceleration. MPV will fallback to software
 	 * decoding on failure.
@@ -407,6 +407,7 @@ void retro_reset(void)
 	return;
 }
 
+#if 0
 static void audio_callback(double fps)
 {
 	/* Obtain len samples to reduce lag. */
@@ -426,6 +427,7 @@ static void audio_callback(double fps)
 		audio_batch_cb(frames, mpv_len);
 	}
 }
+#endif
 
 static void retropad_update_input(void)
 {
@@ -549,7 +551,7 @@ void retro_run(void)
 	retropad_update_input();
 
 	/* TODO #2: Implement an audio callback feature in to libmpv */
-	audio_callback(container_fps);
+	//audio_callback(container_fps);
 
 #if 1
 	if(frame_queue > 0)
@@ -608,6 +610,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
 		{ 0 },
 	};
+
+	if(info->path == NULL)
+		return false;
 
 	/* Copy the file path to a global variable as we need it in context_reset()
 	 * where mpv is initialised.
