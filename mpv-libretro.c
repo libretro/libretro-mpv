@@ -562,7 +562,6 @@ void retro_run(void)
 				.w = width,
 				.h = height,
 			}},
-			{MPV_RENDER_PARAM_FLIP_Y, &(int){1}},
 			{0}
 		};
 		mpv_render_context_render(mpv_gl, params);
