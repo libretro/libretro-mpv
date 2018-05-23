@@ -152,6 +152,12 @@ static void on_mpv_events(void *mpv)
 
 void retro_init(void)
 {
+	if(mpv_client_api_version() != MPV_CLIENT_API_VERSION)
+	{
+		log_cb(RETRO_LOG_WARN, "libmpv version mismatch. Please update or "
+				"recompile mpv-libretro after updating libmpv.");
+	}
+
 	return;
 }
 
