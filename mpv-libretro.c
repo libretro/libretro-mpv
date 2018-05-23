@@ -15,7 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* Required for nanosleep */
+/* Required for retro_sleep */
 #define _POSIX_C_SOURCE 199309L
 
 #include <math.h>
