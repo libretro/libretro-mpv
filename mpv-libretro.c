@@ -28,6 +28,9 @@
 #include <mpv/render_gl.h>
 
 #include <libretro.h>
+#include <compat/posix_string.h>
+#include <string/stdstring.h>
+#include <file/file_path.h>
 
 #include "version.h"
 
@@ -596,19 +599,28 @@ bool retro_load_game(const struct retro_game_info *info)
 		{ 0 },
 	};
 
-	if(info->path == NULL)
+	if(string_is_empty(info->path))
+	{
+		log_cb(RETRO_LOG_ERROR, "Content path is not set. Exiting!\n");
 		return false;
+	}
+
+	log_cb(RETRO_LOG_INFO, "Content path: %s.\n", info->path);    
+
+	if(!path_is_valid(info->path))
+	{
+		log_cb(RETRO_LOG_ERROR, "Content path is not valid. Exiting!");
+		return false;
+	}
 
 	/* Copy the file path to a global variable as we need it in context_reset()
 	 * where mpv is initialised.
 	 */
-	if((filepath = malloc(strlen(info->path)+1)) == NULL)
+	if((filepath = strdup(info->path)) == NULL)
 	{
 		log_cb(RETRO_LOG_ERROR, "Unable to allocate memory for filepath\n");
 		return false;
 	}
-
-	strcpy(filepath,info->path);
 
 	environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, desc);
 

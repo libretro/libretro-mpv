@@ -5,6 +5,7 @@ TARGET_NAME		:= mpv
 PREFIX			:= /usr
 LIBDIR			:= $(PREFIX)/lib
 LIBRETRO_DIR	:= libretro
+LIBRETRO_COMMON_DIR	:= ./libretro-common
 
 ifeq ($(platform),)
    platform = unix
@@ -111,13 +112,17 @@ else
    CFLAGS += -Ofast
 endif
 
-OBJECTS	:= mpv-libretro.o
-LDFLAGS	+= -lmpv -lm
-CFLAGS	+= -Wall -pedantic -std=c99 -I./libretro-common/include/
+OBJECTS	:= mpv-libretro.o \
+	$(LIBRETRO_COMMON_DIR)/compat/compat_posix_string.o \
+	$(LIBRETRO_COMMON_DIR)/compat/compat_strcasestr.o \
+	$(LIBRETRO_COMMON_DIR)/compat/compat_strl.o \
+	$(LIBRETRO_COMMON_DIR)/compat/fopen_utf8.o \
+	$(LIBRETRO_COMMON_DIR)/encodings/encoding_utf.o \
+	$(LIBRETRO_COMMON_DIR)/file/file_path.o \
+	$(LIBRETRO_COMMON_DIR)/string/stdstring.o
 
-ifneq (,$(findstring gles,$(platform)))
-   LDFLAGS += -ldl 
-endif
+LDFLAGS	+= -lmpv -lm
+CFLAGS	+= -Wall -pedantic -std=c99 -flto -I./libretro-common/include/
 
 all: $(TARGET)
 
