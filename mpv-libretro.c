@@ -15,9 +15,6 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* Required for retro_sleep */
-#define _POSIX_C_SOURCE 199309L
-
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -37,7 +34,6 @@
 #include <mpv/opengl_cb.h>
 
 #include <libretro.h>
-#include <retro_timers.h>
 
 #include "version.h"
 
@@ -56,11 +52,8 @@ static retro_input_state_t input_state_cb;
 static mpv_handle *mpv;
 static mpv_opengl_cb_context *mpv_gl;
 
-/* Keep track of the number of events in mpv queue */
-static unsigned int event_waiting = 0;
-
 /* Save the current playback time for context changes */
-static int64_t *playback_time = 0;
+static int64_t playback_time = 0;
 
 /* filepath required globaly as mpv is reopened on context change */
 static char *filepath = NULL;
@@ -81,52 +74,59 @@ static void fallback_log(enum retro_log_level level, const char *fmt, ...)
 	va_end(va);
 }
 
-static void print_mpv_logs(void)
+/**
+ * Process various events triggered by mpv, such as printing log messages.
+ *
+ * \param event_block	Wait until the mpv triggers specified event. Should be
+ *						NULL if no wait is required.
+ */
+static void process_mpv_events(mpv_event_id event_block)
 {
-	/* Print out mpv logs */
-	if(event_waiting > 0)
+	do
 	{
-		while(1)
+		mpv_event *mp_event = mpv_wait_event(mpv, 0);
+		if(event_block == MPV_EVENT_NONE &&
+				mp_event->event_id == MPV_EVENT_NONE)
+			break;
+
+		if(mp_event->event_id == event_block)
+			event_block = MPV_EVENT_NONE;
+
+		if(mp_event->event_id == MPV_EVENT_LOG_MESSAGE)
 		{
-			mpv_event *mp_event = mpv_wait_event(mpv, 0);
-			if(mp_event->event_id == MPV_EVENT_NONE)
-				break;
-
-			if(mp_event->event_id == MPV_EVENT_LOG_MESSAGE)
-			{
-				struct mpv_event_log_message *msg =
-					(struct mpv_event_log_message *)mp_event->data;
-				log_cb(RETRO_LOG_INFO, "mpv: [%s] %s: %s",
-						msg->prefix, msg->level, msg->text);
-			}
-			else if(mp_event->event_id == MPV_EVENT_END_FILE)
-			{
-				struct mpv_event_end_file *eof =
-					(struct mpv_event_end_file *)mp_event->data;
-
-				if(eof->reason == MPV_END_FILE_REASON_EOF)
-					environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
-#if 0
-				/* The following could be done instead if the file was not
-				 * closed once the end was reached - allowing the user to seek
-				 * back without reopening the file.
-				 */
-				struct retro_message ra_msg = {
-					"Finished playing file", 60 * 5, /* 5 seconds */
-				};
-
-				environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &ra_msg);RETRO_ENVIRONMENT_SHUTDOWN
-#endif
-			}
-			else
-			{
-				log_cb(RETRO_LOG_INFO, "mpv: %s\n",
-						mpv_event_name(mp_event->event_id));
-			}
+			struct mpv_event_log_message *msg =
+				(struct mpv_event_log_message *)mp_event->data;
+			log_cb(RETRO_LOG_INFO, "mpv: [%s] %s: %s",
+					msg->prefix, msg->level, msg->text);
 		}
+		else if(mp_event->event_id == MPV_EVENT_END_FILE)
+		{
+			struct mpv_event_end_file *eof =
+				(struct mpv_event_end_file *)mp_event->data;
 
-		event_waiting = 0;
+			if(eof->reason == MPV_END_FILE_REASON_EOF)
+				environ_cb(RETRO_ENVIRONMENT_SHUTDOWN, NULL);
+#if 0
+			/* The following could be done instead if the file was not
+			 * closed once the end was reached - allowing the user to seek
+			 * back without reopening the file.
+			 */
+			struct retro_message ra_msg = {
+				"Finished playing file", 60 * 5, /* 5 seconds */
+			};
+
+			environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE, &ra_msg);RETRO_ENVIRONMENT_SHUTDOWN
+#endif
+		}
+		else if(mp_event->event_id == MPV_EVENT_NONE)
+			continue;
+		else
+		{
+			log_cb(RETRO_LOG_INFO, "mpv: %s\n",
+					mpv_event_name(mp_event->event_id));
+		}
 	}
+	while(1);
 }
 
 static void *get_proc_address_mpv(void *fn_ctx, const char *name)
@@ -143,11 +143,6 @@ static void *get_proc_address_mpv(void *fn_ctx, const char *name)
 		log_cb(RETRO_LOG_ERROR, "Failure obtaining %s proc address\n", name);
 
 	return proc_addr;
-}
-
-static void on_mpv_events(void *mpv)
-{
-	event_waiting++;
 }
 
 void retro_init(void)
@@ -250,6 +245,7 @@ void retro_set_environment(retro_environment_t cb)
 static void context_reset(void)
 {
 	const char *cmd[] = {"loadfile", filepath, NULL};
+	int ret;
 
 #ifdef HAVE_LOCALE
 	setlocale(LC_NUMERIC, "C");
@@ -257,23 +253,23 @@ static void context_reset(void)
 
 	mpv = mpv_create();
 
-	if(mpv == NULL)
+	if(!mpv)
 	{
 		log_cb(RETRO_LOG_ERROR, "failed creating context\n");
 		exit(EXIT_FAILURE);
 	}
 
-	if(mpv_initialize(mpv) < 0)
+	if((ret = mpv_initialize(mpv)) < 0)
 	{
-		log_cb(RETRO_LOG_ERROR, "mpv init failed\n");
+		log_cb(RETRO_LOG_ERROR, "mpv init failed: %s\n", mpv_error_string(ret));
 		exit(EXIT_FAILURE);
 	}
 
-    /* When normal mpv events are available. */
-	mpv_set_wakeup_callback(mpv, on_mpv_events, NULL);
-
-	if(mpv_request_log_messages(mpv, "v") < 0)
-		log_cb(RETRO_LOG_ERROR, "mpv logging failed\n");
+	if((ret = mpv_request_log_messages(mpv, "v")) < 0)
+	{
+		log_cb(RETRO_LOG_ERROR, "mpv logging failed: %s\n",
+				mpv_error_string(ret));
+	}
 
 	/* The OpenGL API is somewhat separate from the normal mpv API. This only
 	 * returns NULL if no OpenGL support is compiled.
@@ -286,18 +282,20 @@ static void context_reset(void)
 		goto err;
 	}
 
-	if(mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL) < 0)
+	if((ret = mpv_opengl_cb_init_gl(mpv_gl, NULL, get_proc_address_mpv, NULL)) < 0)
 	{
-		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context\n");
+		log_cb(RETRO_LOG_ERROR, "failed to initialize mpv GL context: %s\n",
+				mpv_error_string(ret));
 		goto err;
 	}
 
 	/* Actually using the opengl_cb state has to be explicitly requested.
 	 * Otherwise, mpv will create a separate platform window.
 	 */
-	if(mpv_set_option_string(mpv, "vo", "opengl-cb") < 0)
+	if((ret = mpv_set_option_string(mpv, "vo", "opengl-cb")) < 0)
 	{
-		log_cb(RETRO_LOG_ERROR, "failed to set video output to OpenGL\n");
+		log_cb(RETRO_LOG_ERROR, "failed to set video output to OpenGL: %s\n",
+				mpv_error_string(ret));
 		goto err;
 	}
 
@@ -308,27 +306,17 @@ static void context_reset(void)
 	/* Attempt to enable hardware acceleration. MPV will fallback to software
 	 * decoding on failure.
 	 */
-	if(mpv_set_option_string(mpv, "hwdec", "auto") < 0)
-		log_cb(RETRO_LOG_ERROR, "failed to set hwdec option\n");
-
-	if(mpv_command(mpv, cmd) != 0)
+	if((ret = mpv_set_option_string(mpv, "hwdec", "auto")) < 0)
 	{
-		log_cb(RETRO_LOG_ERROR, "failed to issue mpv_command to load file\n");
-		goto err;
+		log_cb(RETRO_LOG_ERROR, "failed to set hwdec option: %s\n",
+				mpv_error_string(ret));
 	}
 
-
-	/* Keep trying until mpv accepts the property. This is done to seek to the
-	 * point in the file after the previous context was destroyed. If no
-	 * context was destroyed previously, the file seeks to 0.
-	 *
-	 * This also seems to fix some black screen issues.
-	 */
-	while(mpv_set_property(mpv,
-				"playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
+	if((ret = mpv_command(mpv, cmd)) != 0)
 	{
-		/* Garbage fix to overflowing log */
-		retro_sleep(10);
+		log_cb(RETRO_LOG_ERROR, "mpv_command failed to load input file: %s\n",
+				mpv_error_string(ret));
+		goto err;
 	}
 
 	/* TODO #2: Check for the highest samplerate in audio stream, and use that.
@@ -337,6 +325,23 @@ static void context_reset(void)
 	 */
 	mpv_set_option_string(mpv, "audio-samplerate", "48000");
 	mpv_set_option_string(mpv, "opengl-swapinterval", "0");
+
+	/* Process any events whilst we wait for playback to begin. */
+	process_mpv_events(MPV_EVENT_NONE);
+
+	/* Keep trying until mpv accepts the property. This is done to seek to the
+	 * point in the file after the previous context was destroyed. If no
+	 * context was destroyed previously, the file seeks to 0.
+	 *
+	 * This also seems to fix some black screen issues.
+	 */
+	if(playback_time == 0)
+	{
+		process_mpv_events(MPV_EVENT_PLAYBACK_RESTART);
+		while(mpv_set_property(mpv,
+					"playback-time", MPV_FORMAT_INT64, &playback_time) < 0)
+		{}
+	}
 
 	/* The following works best when vsync is switched off in Retroarch. */
 	//mpv_set_option_string(mpv, "video-sync", "display-resample");
@@ -348,7 +353,7 @@ static void context_reset(void)
 
 err:
 	/* Print mpv logs to see why mpv failed. */
-	print_mpv_logs();
+	process_mpv_events(MPV_EVENT_NONE);
 	exit(EXIT_FAILURE);
 }
 
@@ -545,8 +550,6 @@ void retro_run(void)
 		updated_video_dimensions = true;
 	}
 
-	print_mpv_logs();
-
 	retropad_update_input();
 
 	/* TODO #2: Implement an audio callback feature in to libmpv */
@@ -565,6 +568,9 @@ void retro_run(void)
 	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 #endif
+
+	process_mpv_events(MPV_EVENT_NONE);
+
 	return;
 }
 
