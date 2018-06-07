@@ -15,6 +15,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -191,6 +192,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 {
 	float sampling_rate = 48000.0f;
 
+#if 0
 	struct retro_variable var = { .key = "test_aspect" };
 	environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var);
 
@@ -198,7 +200,7 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
 
 	if(environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
 		sampling_rate = strtof(var.value, NULL);
-
+#endif
 	info->timing = (struct retro_system_timing) {
 		.fps = 60.0,
 		.sample_rate = sampling_rate,
@@ -221,10 +223,12 @@ void retro_set_environment(retro_environment_t cb)
 	environ_cb = cb;
 
 	static const struct retro_variable vars[] = {
-		{ "test_samplerate", "Sample Rate; 48000|30000|20000" },
+#if 0
+		{ "test_samplerate", "Sample Rate; 48000" },
 		{ "test_opt0", "Test option #0; false|true" },
 		{ "test_opt1", "Test option #1; 0" },
 		{ "test_opt2", "Test option #2; 0|1|foo|3" },
+#endif
 		{ NULL, NULL },
 	};
 
@@ -282,7 +286,7 @@ static void context_reset(void)
 
 	mpv_render_context_set_update_callback(mpv_gl, on_mpv_redraw, NULL);
 
-	//mpv_set_option_string(mpv, "ao", "audio-cb");
+	mpv_set_option_string(mpv, "ao", "libmpv");
 
 	/* Attempt to enable hardware acceleration. MPV will fallback to software
 	 * decoding on failure.
@@ -304,8 +308,8 @@ static void context_reset(void)
 	 * Fall back to 48kHz otherwise.
 	 * We currently force the audio to be sampled at 48KHz.
 	 */
-	mpv_set_option_string(mpv, "audio-samplerate", "48000");
-	mpv_set_option_string(mpv, "opengl-swapinterval", "0");
+	mpv_set_option_string(mpv, "af", "format=s16:48000:stereo");
+	//mpv_set_option_string(mpv, "opengl-swapinterval", "0");
 
 	/* Process any events whilst we wait for playback to begin. */
 	process_mpv_events(MPV_EVENT_NONE);
@@ -392,27 +396,41 @@ void retro_reset(void)
 	return;
 }
 
-#if 0
 static void audio_callback(double fps)
 {
 	/* Obtain len samples to reduce lag. */
 	int len = 48000 / (int)floor(fps);
-	static int16_t frames[512];
+    const unsigned int buff_len = 1024;
+    uint8_t buff[buff_len];
 
-	while(len > 0)
+    if(len < 4)
+        len = 4;
+
+    do
 	{
-		int mpv_len = mpv_audio_callback(&frames, len > 512 ? 512*2 : len*2);
-		//printf("mpv cb: %d\n", mpv_len);
-		if(mpv_len < 1)
-			return;
+        len = len - (len % 4);
 
-		len -= mpv_len;
+        int ret = mpv_audio_callback(mpv, &buff,
+                len > buff_len ? buff_len : len);
 
-		//printf("acb: %lu\n", audio_batch_cb(frames, mpv_len));
-		audio_batch_cb(frames, mpv_len);
+        if(ret < 0)
+        {
+            log_cb(RETRO_LOG_ERROR, "mpv encountered an error in audio "
+                    "callback: %d.\n", ret);
+            return;
+        }
+
+        /* mpv may refuse to buffer audio if the first video frame has not
+         * displayed yet. */
+        if(ret == 0)
+            return;
+
+		len -= ret;
+
+		audio_batch_cb(buff, ret);
 	}
+	while(len > 4);
 }
-#endif
 
 static void retropad_update_input(void)
 {
@@ -534,7 +552,9 @@ void retro_run(void)
 	retropad_update_input();
 
 	/* TODO #2: Implement an audio callback feature in to libmpv */
-	//audio_callback(container_fps);
+	audio_callback(container_fps);
+
+	process_mpv_events(MPV_EVENT_NONE);
 
 #if 1
 	if(frame_queue > 0)
@@ -557,8 +577,6 @@ void retro_run(void)
 	mpv_opengl_cb_draw(mpv_gl, hw_render.get_current_framebuffer(), width, height);
 	video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 #endif
-
-	process_mpv_events(MPV_EVENT_NONE);
 
 	return;
 }

@@ -115,10 +115,6 @@ OBJECTS	:= mpv-libretro.o
 LDFLAGS	+= -lmpv -lm
 CFLAGS	+= -Wall -pedantic -std=c99 -I./libretro-common/include/
 
-ifneq (,$(findstring gles,$(platform)))
-   LDFLAGS += -ldl 
-endif
-
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
