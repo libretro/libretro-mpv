@@ -320,7 +320,7 @@ static void context_reset(void)
 	 *
 	 * This also seems to fix some black screen issues.
 	 */
-	if(playback_time == 0)
+	if(playback_time != 0)
 	{
 		process_mpv_events(MPV_EVENT_PLAYBACK_RESTART);
 		while(mpv_set_property(mpv,
